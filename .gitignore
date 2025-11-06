@@ -1,0 +1,62 @@
+
+# .NET Core
+## Ignore build outputs
+bin/
+obj/
+
+post-actions.ps1
+
+
+## NuGet Packages
+*.nupkg
+*.snupkg
+packages/
+*.nuget.props
+*.nuget.targets
+
+# tests
+**/TestResults/
+coveragereport/
+
+## IDE specific
+.idea/
+.vs/
+!.vscode/settings.json
+!.vscode/extensions.json
+
+
+## User-specific files
+*.user
+*.suo
+*.userosscache
+*.sln.docstates
+*.userprefs
+*.DotSettings.user
+
+## Debug and logs
+[Dd]ebug/
+[Rr]elease/
+[Ll]og/
+[Ll]ogs/
+*.log
+
+## Temporary files
+*~
+*.tmp
+*.temp
+.DS_Store
+
+## Visual Studio cache
+*.[Cc]ache
+
+## Coverage and test results
+coverage*.*
+*.coverage
+*.coveragexml
+
+## Other common ignores
+publish/
+node_modules/
+_ReSharper*/
+_TeamCity*
+_NCrunch_* 

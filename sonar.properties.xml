@@ -1,0 +1,24 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<!--
+  Este archivo define propiedades que serían entendidas por el SonarQube Scanner para MSBuild, si no se sobrescriben (ver abajo)
+  Por defecto, SonarScanner.MSBuild.exe toma un archivo llamado SonarQube.Analysis.xml en la carpeta donde se encuentra (si existe).
+  Es posible usar otro archivo de propiedades utilizando el flag /s:filePath.xml
+
+  La estrategia de sobrescritura de valores de propiedades es la siguiente:
+  - Una propiedad específica del proyecto definida en el archivo MSBuild *.*proj (correspondiente a un módulo de SonarQube) puede sobrescribir:
+  - Una propiedad definida en la línea de comandos (/d:propertyName=value) que puede sobrescribir:
+  - Una propiedad definida en el archivo de configuración SonarQube.Analysis.xml [este archivo] que puede sobrescribir:
+  - Una propiedad definida en la interfaz de usuario de SonarQube a nivel de proyecto que puede sobrescribir:
+  - Una propiedad definida en la interfaz de usuario de SonarQube a nivel global que no puede sobrescribir nada.
+
+  Ten en cuenta que las siguientes propiedades no se pueden establecer a través de un archivo de proyecto MSBuild o un archivo SonarQube.Analysis.xml:
+  sonar.projectName, sonar.projectKey, sonar.projectVersion
+  Los siguientes flags deben usarse para establecer su valor: /n:[Nombre del Proyecto SonarQube] /k:[Clave del Proyecto SonarQube] /v:[Versión del Proyecto SonarQube]
+-->
+<SonarQubeAnalysisProperties xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xmlns:xsd="http://www.w3.org/2001/XMLSchema" xmlns="http://www.sonarsource.com/msbuild/integration/2015/1">
+  <Property Name="sonar.qualityGate.wait">true</Property>
+  <Property Name="sonar.exclusions">Dockerfile,.gitlab/**/*,.copilot/**/*,.vscode/**/*,.githooks/**/**,Openshift/**/*,**/obj/**,**/bin/**,**/migrations/**,**/wwwroot/**,test/**,**/tests/**</Property>
+  <Property Name="sonar.coverage.exclusions">**/Program.cs,**/Startup.cs,**/GlobalUsings.cs,**/*.Designer.cs</Property>
+  <Property Name="sonar.dotnet.excludeTestProjects">true</Property>
+  <Property Name="sonar.cs.opencover.reportsPaths">**/TestResults/result.xml</Property>
+</SonarQubeAnalysisProperties>

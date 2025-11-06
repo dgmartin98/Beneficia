@@ -1,0 +1,28 @@
+{
+    "version": "0.2.0",
+    "configurations": [
+        {
+            "name": "Launch API",
+            "type": "coreclr",
+            "request": "launch",
+            "preLaunchTask": "build",
+            "program": "${workspaceFolder}/src/Api/bin/Debug/net8.0/Api.dll",
+            "args": [],
+            "cwd": "${workspaceFolder}/src/Api",
+            "stopAtEntry": false,
+            "serverReadyAction": {
+                "action": "openExternally",
+                "pattern": "\\bNow listening on:\\s+(https?://\\S+)",
+                "uriFormat": "%s/swagger"
+            },
+            "env": {
+                "ASPNETCORE_ENVIRONMENT": "Development",
+                "ASPNETCORE_URLS": "https://localhost:7057",
+                "DYNATRACE_INGEST_URL": "https://dynatrace.com/",
+                "DYNATRACE_API_TOKEN": "123456",
+                "DYNATRACE_MIN_LOG_LEVEL": "Warning"
+            },
+            "console": "integratedTerminal"
+        }
+    ]
+}

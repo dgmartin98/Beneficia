@@ -1,0 +1,24 @@
+{
+  "Serilog": {
+    "MinimumLevel": {
+      "Default": "Debug",
+      "Override": {
+        "Microsoft": "Warning",
+        "Microsoft.AspNetCore": "Warning",
+        "Microsoft.AspNetCore.Hosting.Diagnostics": "Error",
+        "Microsoft.AspNetCore.Routing.EndpointMiddleware": "Error",
+        "Microsoft.Hosting.Lifetime": "Information",
+        "System": "Warning"
+      }
+    },
+    "WriteTo": [
+      {
+        "Name": "Console",
+        "Args": {
+          "outputTemplate": "[{Timestamp:HH:mm:ss} {Level:u3}] [{CorrelationId}] [{Usuario}] {Message:lj}{NewLine}{Exception}",
+          "restrictedToMinimumLevel": "Debug"
+        }
+      }
+    ]
+  }
+}

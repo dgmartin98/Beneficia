@@ -1,0 +1,39 @@
+{
+    "github.copilot.chat.codeGeneration.useInstructionFiles": true,
+    "files.exclude": {
+        "**/TestResults/**": true,
+        "**/obj/**": true,
+        "**/bin/**": true,
+        ".idea/**": true,
+        "**/*.csproj.user": true,
+    },
+    "omnisharp.enableEditorConfigSupport": true,
+    "dotnet.defaultSolution": "Cross.ServiciosCross.BeneficiaApi.sln",
+    "editor.formatOnSave": true,
+    "[csharp]": {
+        "editor.defaultFormatter": "ms-dotnettools.csharp",
+        "editor.formatOnSave": true,
+        "editor.tabSize": 4,
+        "editor.insertSpaces": true
+    },
+    "workbench.colorCustomizations": {
+        "activityBar.activeBackground": "#1b62cb",
+        "activityBar.background": "#1b62cb",
+        "activityBar.foreground": "#e7e7e7",
+        "activityBar.inactiveForeground": "#e7e7e799",
+        "activityBarBadge.background": "#710f36",
+        "activityBarBadge.foreground": "#e7e7e7",
+        "commandCenter.border": "#e7e7e799",
+        "sash.hoverBorder": "#1b62cb",
+        "statusBar.background": "#154c9e",
+        "statusBar.foreground": "#e7e7e7",
+        "statusBarItem.hoverBackground": "#1b62cb",
+        "statusBarItem.remoteBackground": "#154c9e",
+        "statusBarItem.remoteForeground": "#e7e7e7",
+        "titleBar.activeBackground": "#154c9e",
+        "titleBar.activeForeground": "#e7e7e7",
+        "titleBar.inactiveBackground": "#154c9e99",
+        "titleBar.inactiveForeground": "#e7e7e799"
+    },
+    "peacock.color": "#154c9e",
+}

@@ -1,0 +1,18 @@
+﻿{
+  "$schema": "https://json.schemastore.org/launchsettings.json",
+  "profiles": {
+    "https dev": {
+      "commandName": "Project",
+      "dotnetRunMessages": true,
+      "hotReloadEnabled": true,
+      "launchUrl": "https://localhost:7057/swagger",
+      "applicationUrl": "https://localhost:7057;http://localhost:2548",
+      "environmentVariables": {
+        "ASPNETCORE_ENVIRONMENT": "Development",
+        "DYNATRACE_INGEST_URL": "https://dynatrace.com/",
+        "DYNATRACE_API_TOKEN": "123456",
+        "DYNATRACE_MIN_LOG_LEVEL": "Warning"
+      }
+    }
+  }
+}

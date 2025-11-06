@@ -1,0 +1,54 @@
+include:
+  - project: "arquitectura-integraciones/openshift-templates"
+    file:
+      - .gitlab/ci/common.yml
+      - .gitlab/ci/fetch-openshift-manifests.yml
+      - .gitlab/ci/backend/deploy/prepare.yml
+      - .gitlab/ci/backend/deploy/prepare-certs.yml
+      - .gitlab/ci/backend/deploy/build.yml
+      - .gitlab/ci/backend/deploy/deploy.yml
+      - .gitlab/ci/backend/qa/test.yml
+      - .gitlab/ci/backend/qa/sonar.yml
+      - .gitlab/ci/backend/.gitlab-ci.yml
+    ref: v1.0.6
+
+variables:
+  OCP_CLUSTER: "nonpro001"
+  OCP_TEMPLATES_VERSION: "v1.0.6"
+  IMAGE_NAME: "cross-servicioscross-beneficiaapi"
+  APP_COMPONENT: "backend" # Tipo de servicio
+  # Sistema al que pertenece el servicio
+  APP_SYSTEM: ""
+  # Descripción del servicio
+  APP_DESCRIPTION: ""
+  # Sistemas con los que se integra (nombre del proyecto separados por comas)
+  APP_CONNECTIONS: '''[""]'''
+  LIVENESS_PATH: "/api/health/live"
+  READINESS_PATH: "/api/health/ready"
+  STARTUP_PATH: "/api/health/startup"
+  # SONAR_TOKEN debe estar definido en el grupo de proyecto para cuenta de servicio
+  SONAR_PROJECT: "cross-servicioscross-beneficiaapi"
+
+workflow:
+  rules:
+    - if: '$CI_COMMIT_BRANCH == "testing"'
+      variables:
+        # Revisa la documentación de variables a sobreescribir: https://gitlab.gruposancorseguros.com/arquitectura-integraciones/openshift-templates/-/blob/main/README.md
+        ENVIRONMENT: "Testing" # NO BORRAR
+        CONFIGMAPS_FILE: ".openshift/configmaps.tst.yml"
+        OPENSHIFT_PROJECT: "${OPENSHIFT_PROJECT_TESTING}"
+        OPENSHIFT_USER: "${OPENSHIFT_USER_TESTING}"
+        OPENSHIFT_TOKEN: ${OPENSHIFT_TOKEN_TESTING}
+
+    - if: '$CI_COMMIT_BRANCH == "pre"' # Lo más parecido a PRO
+      variables:
+        # Revisa la documentación de variables a sobreescribir: https://gitlab.gruposancorseguros.com/arquitectura-integraciones/openshift-templates/-/blob/main/README.md
+        ENVIRONMENT: "Preproduction" # NO BORRAR
+        OCP_DEPLOY_STRATEGY: "RollingUpdate"
+        OCP_REPLICAS: "2"
+        CONFIGMAPS_FILE: ".openshift/configmaps.pre.yml"
+        # OPENSHIFT_PROJECT: "${OPENSHIFT_PROJECT_PRE}"
+        # OPENSHIFT_USER: "${OPENSHIFT_USER_PRE}"
+        # OPENSHIFT_TOKEN: ${OPENSHIFT_TOKEN_PRE}
+
+    - when: always

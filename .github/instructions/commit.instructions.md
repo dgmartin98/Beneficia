@@ -1,0 +1,4 @@
+- Escribir el commit en español. Resumido y claro.
+- El commit debe explicar el porqué del cambio y el qué se cambió, a grandes rasgos.
+- Utilizar bulletpoints si es necesario.
+- No incluir líneas en blanco al inicio o final del mensaje.

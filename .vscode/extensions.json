@@ -1,0 +1,11 @@
+{
+    "recommendations": [
+        "ms-dotnettools.csdevkit",
+        "ms-dotnettools.csharp",
+        "usernamehw.errorlens",
+        "pkief.material-icon-theme",
+        "wayou.vscode-todo-highlight",
+        "ms-mssql.mssql",
+        "sonarsource.sonarlint-vscode"
+    ]
+}

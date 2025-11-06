@@ -1,0 +1,63 @@
+{
+  "Serilog": {
+    "Using": ["Gss.Serilog.Sinks.Dynatrace"],
+    "MinimumLevel": {
+      "Default": "Debug",
+      "Override": {
+        "Microsoft": "Warning",
+        "Microsoft.AspNetCore": "Warning",
+        "Microsoft.AspNetCore.Hosting.Diagnostics": "Error",
+        "Microsoft.AspNetCore.Routing.EndpointMiddleware": "Error",
+        "Microsoft.Hosting.Lifetime": "Warning",
+        "System": "Warning"
+      }
+    },
+    "Enrich": [
+      "FromLogContext"
+    ],
+    "Properties": {
+      "Aplicacion": "Cross.ServiciosCross.BeneficiaApi",
+      "Version": "1.0.0"
+    },
+    "WriteTo": [
+      {
+        "Name": "Console",
+        "Args": {
+          "outputTemplate": "[{Timestamp:HH:mm:ss.fff} {Level:u3}] [{CorrelationId}] [{Usuario}] {Message:lj}{NewLine}{Exception}",
+          "restrictedToMinimumLevel": "Information"
+        }
+      },
+      {
+        "Name": "File",
+        "Args": {
+          "path": "logs/application-.log",
+          "rollingInterval": "Day",
+          "retainedFileCountLimit": 30,
+          "outputTemplate": "[{Timestamp:yyyy-MM-dd HH:mm:ss.fff} {Level:u3}] [{CorrelationId}] [{Usuario}] {Message:lj} {Properties:j}{NewLine}{Exception}",
+          "restrictedToMinimumLevel": "Debug"
+        }
+      },
+      {
+        "Name": "File",
+        "Args": {
+          "path": "logs/errors-.log",
+          "rollingInterval": "Day",
+          "retainedFileCountLimit": 90,
+          "outputTemplate": "[{Timestamp:yyyy-MM-dd HH:mm:ss.fff} {Level:u3}] [{CorrelationId}] [{Usuario}] {Message:lj} {Properties:j}{NewLine}{Exception}",
+          "restrictedToMinimumLevel": "Warning"
+        }
+      },
+      {
+        "Name": "Dynatrace",
+        "Args": {
+          "IngestUrl": "${DYNATRACE_INGEST_URL}",
+          "ApiToken": "${DYNATRACE_API_TOKEN}",
+          "BatchSizeLimit": 25,
+          "PeriodInSeconds": 10,
+          "AutoDetectK8s": true,
+          "MinimumLogLevel": "${DYNATRACE_MIN_LOG_LEVEL}"
+        }
+      }
+    ]
+  }
+}

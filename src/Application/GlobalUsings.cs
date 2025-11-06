@@ -1,0 +1,11 @@
+﻿global using Gss.Results;
+global using FluentValidation;
+global using Gss.MinimalApis.Interfaces;
+global using Gss.MinimalApis.Extensions;
+global using Gss.Mediator;
+global using Gss.MinimalApis.Mediator;
+global using Microsoft.AspNetCore.Builder;
+global using Microsoft.AspNetCore.Routing;
+global using Microsoft.AspNetCore.Http;
+global using Microsoft.AspNetCore.Mvc;
+global using Gss.Linq;

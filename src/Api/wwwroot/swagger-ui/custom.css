@@ -1,0 +1,26 @@
+/* Quita logo Swagger */
+.swagger-ui .topbar .link svg,
+.swagger-ui .topbar .link span {
+    display: none !important;
+}
+
+.swagger-ui .topbar .link:before {
+    content: "" !important;
+    display: inline-block !important;
+    width: 120px;  /* ajusta al tamaño de tu logo */
+    height: 40px;
+    background: url('/swagger-ui/logo.svg') no-repeat center center;
+    background-size: contain;
+}
+.select-label span {
+    color: black;
+}
+.swagger-ui .topbar .download-url-wrapper .select-label select{
+    border: 2px solid black;
+}
+
+/* Banner base */
+.swagger-ui .topbar {
+    color: white !important;
+    background-color: #ffffff !important; /* Verde */
+}
