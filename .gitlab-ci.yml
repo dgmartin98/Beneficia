@@ -18,9 +18,9 @@ variables:
   IMAGE_NAME: "cross-servicioscross-beneficiaapi"
   APP_COMPONENT: "backend" # Tipo de servicio
   # Sistema al que pertenece el servicio
-  APP_SYSTEM: ""
+  APP_SYSTEM: "cross-beneficia"
   # Descripción del servicio
-  APP_DESCRIPTION: ""
+  APP_DESCRIPTION: "API para el programa de beneficia"
   # Sistemas con los que se integra (nombre del proyecto separados por comas)
   APP_CONNECTIONS: '''[""]'''
   LIVENESS_PATH: "/api/health/live"
