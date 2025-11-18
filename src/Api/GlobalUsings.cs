@@ -4,3 +4,4 @@ global using Gss.MinimalApis.Interfaces;
 global using Gss.MinimalApis.Extensions;
 global using Serilog;
 global using Serilog.Events;
+global using Gss.MinimalApis.Mediator;
