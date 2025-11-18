@@ -1,4 +1,6 @@
 using Microsoft.EntityFrameworkCore.Storage;
+using Microsoft.EntityFrameworkCore;
+using Domain.Persons;
 
 namespace Application.Interfaces;
 
@@ -7,6 +9,11 @@ namespace Application.Interfaces;
 /// </summary>
 public interface IAppDbContext
 {
+
+    /// <summary>
+    /// Colección de personas disponible para consultas.
+    /// </summary>
+    DbSet<Person> Persons { get; }
 
     /// <summary>
     /// Guarda los cambios de forma asíncrona

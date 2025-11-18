@@ -3,6 +3,7 @@ using Gss.MinimalApis.Configuration;
 using Gss.MinimalApis.Middlewares;
 using Gss.MinimalApis.Mediator.Configuration;
 using Api.Configuration;
+using Api.Persons;
 using System.Text.Json;
 using Gss.MinimalApis.Settings;
 using Infrastructure.Persistence;
@@ -48,6 +49,8 @@ try
         .ConfigureResponseCompression()
         .ConfigureRepositories(builder.Configuration)
         ;
+
+    builder.Services.AddPersonsModule();
 
     var app = builder.Build();
 
