@@ -1,4 +1,5 @@
 using Swashbuckle.AspNetCore.SwaggerUI;
+using System;
 
 namespace Api.Configuration;
 
@@ -7,8 +8,10 @@ namespace Api.Configuration;
 /// </summary>
 public static class SwaggerConfiguration
 {
-    public static WebApplication UseApiSwagger(this WebApplication app)
+    public static WebApplication UseApiSwagger(this WebApplication app, SwaggerUiSettings? uiSettings = null)
     {
+        uiSettings ??= new SwaggerUiSettings();
+
         app.UseStaticFiles();
         app.UseSwagger();
         app.UseSwaggerUI(c =>
@@ -17,17 +20,18 @@ public static class SwaggerConfiguration
             // Personalización adicional
             c.DocumentTitle = $"[{slugEnvironment}] Cross.ServiciosCross.BeneficiaApi API Docs";
             c.SwaggerEndpoint("/swagger/v1/swagger.json", $"v1");
-            c.RoutePrefix = "swagger";
+            c.RoutePrefix = uiSettings.RoutePrefix;
             c.DocExpansion(DocExpansion.List);
             c.DefaultModelsExpandDepth(-1); // Ocultar modelos por defecto
             c.DefaultModelRendering(ModelRendering.Example);
-            if (!app.Environment.IsProduction())
+            if (uiSettings.EnableTryItOut)
             {
                 c.EnableTryItOutByDefault();
             }
-            else
+
+            if (uiSettings.AllowAllSubmitMethods)
             {
-                c.SupportedSubmitMethods(SubmitMethod.Get);
+                c.SupportedSubmitMethods(Enum.GetValues<SubmitMethod>());
             }
 
             c.ApplyStyles(slugEnvironment.ToLower());
