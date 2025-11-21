@@ -26,11 +26,13 @@ public class BupPhoneService : Application.Services.IBupPhoneService
         _logger = logger;
     }
 
-    public async Task<IEnumerable<BupPhoneDto>> GetPhonesByPersonIdAsync(int personId, CancellationToken cancellationToken)
+    public async Task<IEnumerable<BupPhoneDto>> GetPhonesByPersonIdAsync(int personId, string? accessToken, CancellationToken cancellationToken)
     {
         try
         {
-            var token = await _tokenService.GetTokenAsync(cancellationToken);
+            var token = string.IsNullOrWhiteSpace(accessToken)
+                ? await _tokenService.GetTokenAsync(cancellationToken)
+                : accessToken;
             var client = _factory.CreateClient("BupApi");
             using var request = new HttpRequestMessage(HttpMethod.Get, $"people/{personId}/phones");
             request.Headers.Authorization = new AuthenticationHeaderValue("Bearer", token);
