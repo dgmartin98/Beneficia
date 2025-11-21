@@ -1,4 +1,6 @@
 using System.Reflection;
+using System.Diagnostics;
+using System.Linq;
 using Gss.MinimalApis.Configuration;
 using Gss.MinimalApis.Middlewares;
 using Gss.MinimalApis.Mediator.Configuration;
@@ -7,6 +9,7 @@ using Api.Persons;
 using System.Text.Json;
 using Gss.MinimalApis.Settings;
 using Infrastructure.Persistence;
+using Infrastructure.Bup;
 
 // Configurar logging temprano para capturar errores de startup
 SerilogConfiguration.ConfigureEarlyLogging();
@@ -50,6 +53,8 @@ try
         .ConfigureRepositories(builder.Configuration)
         ;
 
+    builder.Services.AddBupServices(builder.Configuration);
+
     builder.Services.AddPersonsModule();
 
     var app = builder.Build();
@@ -72,6 +77,22 @@ try
 
     app.MapEndpointsFromAssembly(Assembly.Load("Api"));
     app.MapEndpointsFromAssembly(Assembly.Load("Application"));
+
+    // In Development open the browser automatically to the first configured url (safe dev-only behavior)
+    if (app.Environment.IsDevelopment())
+    {
+        var url = app.Urls.FirstOrDefault() ?? "https://localhost:5003";
+        try
+        {
+            var psi = new ProcessStartInfo { FileName = url, UseShellExecute = true };
+            // start after a short delay so Kestrel is ready to accept connections
+            _ = Task.Run(async () => { await Task.Delay(500); Process.Start(psi); });
+        }
+        catch
+        {
+            // best-effort open; ignore failures in dev
+        }
+    }
 
     await app.RunAsync();
 }

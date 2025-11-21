@@ -1,5 +1,9 @@
+using Application.Persons.Dtos;
+using Application.Services;
 using Application.Interfaces;
-using Domain.Persons;
+using Gss.Results;
+using Gss.Mediator;
+using Microsoft.Extensions.Logging;
 using Microsoft.EntityFrameworkCore;
 
 namespace Application.Persons.GetPersonById;
@@ -7,49 +11,38 @@ namespace Application.Persons.GetPersonById;
 /// <summary>
 /// Handler para obtener una persona por Id utilizando CQRS/MediatR.
 /// </summary>
-public class GetPersonByIdQueryHandler(IAppDbContext dbContext) : IQueryHandler<GetPersonByIdQuery, Result<PersonResponse>>
+public class GetPersonByIdQueryHandler : IQueryHandler<GetPersonByIdQuery, BupPersonDto>
 {
-    private readonly IAppDbContext _dbContext = dbContext ?? throw new ArgumentNullException(nameof(dbContext));
+    private readonly IAppDbContext _dbContext;
+    private readonly IBupPersonService _personService;
+    private readonly IBupPhoneService _phoneService;
+    private readonly ILogger<GetPersonByIdQueryHandler> _logger;
 
-    public Task<Result<PersonResponse>> Handle(GetPersonByIdQuery request, CancellationToken cancellationToken)
+    public GetPersonByIdQueryHandler(IAppDbContext dbContext, IBupPersonService personService, IBupPhoneService phoneService, ILogger<GetPersonByIdQueryHandler> logger)
     {
-        // MOCK ACTIVO: devuelve una entidad en memoria preparada para los primeros pasos del módulo Persons.
-        var mockPerson = new Person
-        {
-            Id = request.Id,
-            Nombre = "Grace",
-            Apellido = "Hopper",
-            Email = "grace.hopper@example.com",
-            Phone = "+54 9 11 5555-1234",
-            FechaNacimiento = new DateTime(1906, 12, 9)
-        };
-
-        var response = MapToResponse(mockPerson);
-
-        return Task.FromResult(Result.Success(response));
-
-        /*
-        // IMPLEMENTACIÓN REAL: descomentar para consultar la base de datos usando IAppDbContext.
-        var person = await _dbContext.Persons
-            .AsNoTracking()
-            .FirstOrDefaultAsync(p => p.Id == request.Id, cancellationToken);
-
-        if (person is null)
-        {
-            return Result.NotFound<PersonResponse>($"No se encontró la persona con Id {request.Id}.");
-        }
-
-        return Result.Success(MapToResponse(person));
-        */
+        _dbContext = dbContext ?? throw new ArgumentNullException(nameof(dbContext));
+        _personService = personService ?? throw new ArgumentNullException(nameof(personService));
+        _phoneService = phoneService ?? throw new ArgumentNullException(nameof(phoneService));
+        _logger = logger ?? throw new ArgumentNullException(nameof(logger));
     }
 
-    private static PersonResponse MapToResponse(Person person) => new()
+    public async Task<Result<BupPersonDto>> Handle(GetPersonByIdQuery request, CancellationToken cancellationToken)
     {
-        Id = person.Id,
-        Nombre = person.Nombre,
-        Apellido = person.Apellido,
-        Email = person.Email,
-        Phone = person.Phone,
-        FechaNacimiento = person.FechaNacimiento
-    };
+        try
+        {
+            var person = await _personService.GetPersonByIdAsync(request.PersonId, cancellationToken);
+            if (person == null)
+                return Result<BupPersonDto>.NotFound("Persona no encontrada");
+
+            var phones = await _phoneService.GetPhonesByPersonIdAsync(request.PersonId, cancellationToken);
+            person.Phones = phones.ToList();
+
+            return Result<BupPersonDto>.Success(person);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error obteniendo persona BUP {PersonId}", request.PersonId);
+            throw;
+        }
+    }
 }
