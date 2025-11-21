@@ -21,7 +21,7 @@ public class PersonsEndpoint : IEndpoint
                 {
                     Log.Information("Bup ClientId (endpoint): '{ClientId}'", bupOptions.Value.ClientId);
                     // Development fallback: if BUP is not configured, return a local mock without calling external services
-                    if (string.IsNullOrWhiteSpace(bupOptions.Value.ClientId))
+                    if (!bupOptions.Value.HasConfiguredClientId())
                     {
                         var mock = personId switch
                         {
