@@ -26,11 +26,13 @@ public class BupPersonService : Application.Services.IBupPersonService
         _logger = logger;
     }
 
-    public async Task<BupPersonDto> GetPersonByIdAsync(int personId, CancellationToken cancellationToken)
+    public async Task<BupPersonDto> GetPersonByIdAsync(int personId, string? accessToken, CancellationToken cancellationToken)
     {
         try
         {
-            var token = await _tokenService.GetTokenAsync(cancellationToken);
+            var token = string.IsNullOrWhiteSpace(accessToken)
+                ? await _tokenService.GetTokenAsync(cancellationToken)
+                : accessToken;
             var client = _factory.CreateClient("BupApi");
             using var request = new HttpRequestMessage(HttpMethod.Get, $"people/{personId}");
             request.Headers.Authorization = new AuthenticationHeaderValue("Bearer", token);

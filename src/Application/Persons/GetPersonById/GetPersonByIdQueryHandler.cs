@@ -16,13 +16,15 @@ public class GetPersonByIdQueryHandler : IQueryHandler<GetPersonByIdQuery, BupPe
     private readonly IAppDbContext _dbContext;
     private readonly IBupPersonService _personService;
     private readonly IBupPhoneService _phoneService;
+    private readonly IBupTokenService _tokenService;
     private readonly ILogger<GetPersonByIdQueryHandler> _logger;
 
-    public GetPersonByIdQueryHandler(IAppDbContext dbContext, IBupPersonService personService, IBupPhoneService phoneService, ILogger<GetPersonByIdQueryHandler> logger)
+    public GetPersonByIdQueryHandler(IAppDbContext dbContext, IBupPersonService personService, IBupPhoneService phoneService, IBupTokenService tokenService, ILogger<GetPersonByIdQueryHandler> logger)
     {
         _dbContext = dbContext ?? throw new ArgumentNullException(nameof(dbContext));
         _personService = personService ?? throw new ArgumentNullException(nameof(personService));
         _phoneService = phoneService ?? throw new ArgumentNullException(nameof(phoneService));
+        _tokenService = tokenService ?? throw new ArgumentNullException(nameof(tokenService));
         _logger = logger ?? throw new ArgumentNullException(nameof(logger));
     }
 
@@ -30,11 +32,13 @@ public class GetPersonByIdQueryHandler : IQueryHandler<GetPersonByIdQuery, BupPe
     {
         try
         {
-            var person = await _personService.GetPersonByIdAsync(request.PersonId, cancellationToken);
+            var accessToken = await _tokenService.GetTokenAsync(cancellationToken);
+
+            var person = await _personService.GetPersonByIdAsync(request.PersonId, accessToken, cancellationToken);
             if (person == null)
                 return Result<BupPersonDto>.NotFound("Persona no encontrada");
 
-            var phones = await _phoneService.GetPhonesByPersonIdAsync(request.PersonId, cancellationToken);
+            var phones = await _phoneService.GetPhonesByPersonIdAsync(request.PersonId, accessToken, cancellationToken);
             person.Phones = phones.ToList();
 
             return Result<BupPersonDto>.Success(person);
