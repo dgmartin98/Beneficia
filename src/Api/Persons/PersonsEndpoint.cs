@@ -20,52 +20,6 @@ public class PersonsEndpoint : IEndpoint
                 try
                 {
                     Log.Information("Bup ClientId (endpoint): '{ClientId}'", bupOptions.Value.ClientId);
-                    // Development fallback: if BUP is not configured, return a local mock without calling external services
-                    if (!bupOptions.Value.HasConfiguredClientId())
-                    {
-                        var mock = personId switch
-                        {
-                            19231437 => new Application.Persons.Dtos.BupPersonDto
-                            {
-                                BupId = 19231437,
-                                FirstName = "Gabriel",
-                                LastName = "González",
-                                RegisteredName = "Gabriel González",
-                                BirthDate = new DateTime(1985, 4, 12),
-                                Gender = 1,
-                                PersonType = 1,
-                                IdentificationNumber = "19231437",
-                                IdentificationTypeCode = "DNI",
-                                IdentificationIssuerCountry = "AR",
-                                TaxIdentificationNumber = "20-12345678-9",
-                                Phones = new List<Application.Persons.Dtos.BupPhoneDto>
-                                {
-                                    new Application.Persons.Dtos.BupPhoneDto { PhoneId = 1, AreaPhoneCode = "11", PhoneNumber = "12345678", CountryPhoneCode = "54", CompletePhoneNumber = "+54 9 11 1234-5678", PhoneType = 1, PhoneUseType = 1, HasWhatsapp = true }
-                                }
-                            },
-                            244885 => new Application.Persons.Dtos.BupPersonDto
-                            {
-                                BupId = 244885,
-                                FirstName = "María",
-                                LastName = "Pérez",
-                                RegisteredName = "María Pérez",
-                                BirthDate = new DateTime(1990, 7, 3),
-                                Gender = 2,
-                                PersonType = 1,
-                                IdentificationNumber = "244885",
-                                IdentificationTypeCode = "DNI",
-                                IdentificationIssuerCountry = "AR",
-                                TaxIdentificationNumber = "27-87654321-0",
-                                Phones = new List<Application.Persons.Dtos.BupPhoneDto>
-                                {
-                                    new Application.Persons.Dtos.BupPhoneDto { PhoneId = 2, AreaPhoneCode = "11", PhoneNumber = "87654321", CountryPhoneCode = "54", CompletePhoneNumber = "+54 11 8765-4321", PhoneType = 2, PhoneUseType = 1, HasWhatsapp = false }
-                                }
-                            },
-                            _ => new Application.Persons.Dtos.BupPersonDto { BupId = personId, FirstName = "Dev", LastName = "User", RegisteredName = "Dev User", PersonType = 1, Phones = new() }
-                        };
-
-                        return Results.Ok(mock);
-                    }
 
                     var result = await sender.Send(new GetPersonByIdQuery(personId), cancellationToken);
                     return result.ToHttpResult();

@@ -36,6 +36,17 @@ public class BupPersonService : Application.Services.IBupPersonService
 
         try
         {
+            if (!_options.HasConfiguredCredentials())
+            {
+                if (_options.UseMocksWhenUnconfigured)
+                {
+                    _logger?.LogInformation("Returning mock person for id {PersonId} because BUP is not configured.", personId);
+                    return BuildMockPerson(personId);
+                }
+
+                throw new InvalidOperationException("BUP no está configurado (ClientId/ClientSecret). Configure las credenciales para realizar llamadas reales.");
+            }
+
             var token = string.IsNullOrWhiteSpace(accessToken)
                 ? await _tokenService.GetTokenAsync(cancellationToken)
                 : accessToken;
@@ -79,8 +90,6 @@ public class BupPersonService : Application.Services.IBupPersonService
         catch (Exception ex)
         {
             _logger?.LogWarning(ex, "Error obteniendo persona BUP {PersonId}", personId);
-            if (!_options.HasConfiguredClientId())
-                return BuildMockPerson(personId);
 
             throw; // rethrow if not in dev fallback
         }

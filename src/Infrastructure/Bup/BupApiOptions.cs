@@ -13,6 +13,13 @@ public sealed class BupApiOptions
     public string ClientId { get; set; } = string.Empty;
     public string ClientSecret { get; set; } = string.Empty;
     public string Username { get; set; } = string.Empty;
+    public bool UseMocksWhenUnconfigured { get; set; } = false;
+
+    public bool HasConfiguredCredentials()
+        => !IsPlaceholder(ClientId) && !IsPlaceholder(ClientSecret);
+
+    public bool HasConfiguredClientId()
+        => !IsPlaceholder(ClientId);
 
     public bool HasConfiguredCredentials()
         => !IsPlaceholder(ClientId) && !IsPlaceholder(ClientSecret);

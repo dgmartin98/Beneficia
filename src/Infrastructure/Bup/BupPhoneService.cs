@@ -36,6 +36,17 @@ public class BupPhoneService : Application.Services.IBupPhoneService
 
         try
         {
+            if (!_options.HasConfiguredCredentials())
+            {
+                if (_options.UseMocksWhenUnconfigured)
+                {
+                    _logger?.LogInformation("Returning mock phones for id {PersonId} because BUP is not configured.", personId);
+                    return BuildMockPhones(personId);
+                }
+
+                throw new InvalidOperationException("BUP no está configurado (ClientId/ClientSecret). Configure las credenciales para obtener teléfonos reales.");
+            }
+
             var token = string.IsNullOrWhiteSpace(accessToken)
                 ? await _tokenService.GetTokenAsync(cancellationToken)
                 : accessToken;
@@ -71,8 +82,6 @@ public class BupPhoneService : Application.Services.IBupPhoneService
         catch (Exception ex)
         {
             _logger?.LogWarning(ex, "Error obteniendo phones BUP {PersonId}", personId);
-            if (!_options.HasConfiguredClientId())
-                return BuildMockPhones(personId);
 
             throw;
         }
