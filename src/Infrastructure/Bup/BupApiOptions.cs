@@ -21,5 +21,11 @@ public sealed class BupApiOptions
     public bool HasConfiguredClientId()
         => !IsPlaceholder(ClientId);
 
+    public bool HasConfiguredCredentials()
+        => !IsPlaceholder(ClientId) && !IsPlaceholder(ClientSecret);
+
+    public bool HasConfiguredClientId()
+        => !IsPlaceholder(ClientId);
+
     public string BaseUrl => $"https://external-{Catalog}-api.gruposancorseguros.com/apigss/{Catalog}";
 }

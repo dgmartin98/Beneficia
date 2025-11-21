@@ -20,6 +20,7 @@ public class PersonsEndpoint : IEndpoint
                 try
                 {
                     Log.Information("Bup ClientId (endpoint): '{ClientId}'", bupOptions.Value.ClientId);
+
                     var result = await sender.Send(new GetPersonByIdQuery(personId), cancellationToken);
                     return result.ToHttpResult();
                 }

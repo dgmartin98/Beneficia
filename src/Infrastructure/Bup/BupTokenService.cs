@@ -43,7 +43,7 @@ public class BupTokenService : Application.Services.IBupTokenService
             if (!string.IsNullOrEmpty(_accessToken) && DateTimeOffset.UtcNow < _expiresAt)
                 return _accessToken;
 
-            // If credentials are not configured, either return a mock (when explicitly enabled) or fail fast
+
             if (!_options.HasConfiguredCredentials())
             {
                 if (_options.UseMocksWhenUnconfigured)

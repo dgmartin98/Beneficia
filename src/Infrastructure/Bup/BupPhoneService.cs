@@ -28,6 +28,12 @@ public class BupPhoneService : Application.Services.IBupPhoneService
 
     public async Task<IEnumerable<BupPhoneDto>> GetPhonesByPersonIdAsync(int personId, string? accessToken, CancellationToken cancellationToken)
     {
+        if (!_options.HasConfiguredClientId())
+        {
+            _logger?.LogInformation("Returning mock phones for id {PersonId} because BUP is not configured.", personId);
+            return BuildMockPhones(personId);
+        }
+
         try
         {
             if (!_options.HasConfiguredCredentials())
@@ -76,6 +82,7 @@ public class BupPhoneService : Application.Services.IBupPhoneService
         catch (Exception ex)
         {
             _logger?.LogWarning(ex, "Error obteniendo phones BUP {PersonId}", personId);
+
             throw;
         }
     }

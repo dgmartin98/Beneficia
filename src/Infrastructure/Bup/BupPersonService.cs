@@ -28,6 +28,12 @@ public class BupPersonService : Application.Services.IBupPersonService
 
     public async Task<BupPersonDto> GetPersonByIdAsync(int personId, string? accessToken, CancellationToken cancellationToken)
     {
+        if (!_options.HasConfiguredClientId())
+        {
+            _logger?.LogInformation("Returning mock person for id {PersonId} because BUP is not configured.", personId);
+            return BuildMockPerson(personId);
+        }
+
         try
         {
             if (!_options.HasConfiguredCredentials())
@@ -84,6 +90,7 @@ public class BupPersonService : Application.Services.IBupPersonService
         catch (Exception ex)
         {
             _logger?.LogWarning(ex, "Error obteniendo persona BUP {PersonId}", personId);
+
             throw; // rethrow if not in dev fallback
         }
     }
