@@ -43,13 +43,18 @@ public class BupTokenService : Application.Services.IBupTokenService
             if (!string.IsNullOrEmpty(_accessToken) && DateTimeOffset.UtcNow < _expiresAt)
                 return _accessToken;
 
-            // If credentials are not configured, return a local mock token for development
-            if (string.IsNullOrWhiteSpace(_options.ClientId) || string.IsNullOrWhiteSpace(_options.ClientSecret))
+            // If credentials are not configured, either return a mock (when explicitly enabled) or fail fast
+            if (!_options.HasConfiguredCredentials())
             {
-                _logger?.LogWarning("BUP credentials not configured (ClientId/ClientSecret). Using local mock token for development.");
-                _accessToken = "local-dev-token";
-                _expiresAt = DateTimeOffset.UtcNow.AddHours(1);
-                return _accessToken;
+                if (_options.UseMocksWhenUnconfigured)
+                {
+                    _logger?.LogWarning("BUP credentials not configured (ClientId/ClientSecret). Using local mock token for development.");
+                    _accessToken = "local-dev-token";
+                    _expiresAt = DateTimeOffset.UtcNow.AddHours(1);
+                    return _accessToken;
+                }
+
+                throw new InvalidOperationException("BUP no está configurado (ClientId/ClientSecret). Configure las credenciales para solicitar tokens reales.");
             }
 
             var client = _factory.CreateClient("BupApi");

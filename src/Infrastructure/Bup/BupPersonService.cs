@@ -30,6 +30,17 @@ public class BupPersonService : Application.Services.IBupPersonService
     {
         try
         {
+            if (!_options.HasConfiguredCredentials())
+            {
+                if (_options.UseMocksWhenUnconfigured)
+                {
+                    _logger?.LogInformation("Returning mock person for id {PersonId} because BUP is not configured.", personId);
+                    return BuildMockPerson(personId);
+                }
+
+                throw new InvalidOperationException("BUP no está configurado (ClientId/ClientSecret). Configure las credenciales para realizar llamadas reales.");
+            }
+
             var token = string.IsNullOrWhiteSpace(accessToken)
                 ? await _tokenService.GetTokenAsync(cancellationToken)
                 : accessToken;
@@ -73,60 +84,55 @@ public class BupPersonService : Application.Services.IBupPersonService
         catch (Exception ex)
         {
             _logger?.LogWarning(ex, "Error obteniendo persona BUP {PersonId}", personId);
-            // Development fallback: if credentials are not configured, return a local mock
-            if (string.IsNullOrWhiteSpace(_options.ClientId))
-            {
-                _logger?.LogInformation("Returning mock person for id {PersonId} because BUP is not configured.", personId);
-                return personId switch
-                {
-                    19231437 => new BupPersonDto
-                    {
-                        BupId = personId,
-                        FirstName = "Gabriel",
-                        LastName = "González",
-                        RegisteredName = "Gabriel González",
-                        BirthDate = new DateTime(1985, 4, 12),
-                        Gender = 1,
-                        PersonType = 1,
-                        IdentificationNumber = "19231437",
-                        IdentificationTypeCode = "DNI",
-                        IdentificationIssuerCountry = "AR",
-                        TaxIdentificationNumber = "20-12345678-9"
-                    },
-                    244885 => new BupPersonDto
-                    {
-                        BupId = personId,
-                        FirstName = "María",
-                        LastName = "Pérez",
-                        RegisteredName = "María Pérez",
-                        BirthDate = new DateTime(1990, 7, 3),
-                        Gender = 2,
-                        PersonType = 1,
-                        IdentificationNumber = "244885",
-                        IdentificationTypeCode = "DNI",
-                        IdentificationIssuerCountry = "AR",
-                        TaxIdentificationNumber = "27-87654321-0"
-                    },
-                    _ => new BupPersonDto
-                    {
-                        BupId = personId,
-                        FirstName = "Dev",
-                        LastName = "User",
-                        RegisteredName = "Dev User",
-                        BirthDate = null,
-                        Gender = null,
-                        PersonType = 1,
-                        IdentificationNumber = personId.ToString(),
-                        IdentificationTypeCode = "DNI",
-                        IdentificationIssuerCountry = "AR",
-                        TaxIdentificationNumber = null
-                    }
-                };
-            }
-
             throw; // rethrow if not in dev fallback
         }
     }
+
+    private static BupPersonDto BuildMockPerson(int personId) => personId switch
+    {
+        19231437 => new BupPersonDto
+        {
+            BupId = personId,
+            FirstName = "Gabriel",
+            LastName = "González",
+            RegisteredName = "Gabriel González",
+            BirthDate = new DateTime(1985, 4, 12),
+            Gender = 1,
+            PersonType = 1,
+            IdentificationNumber = "19231437",
+            IdentificationTypeCode = "DNI",
+            IdentificationIssuerCountry = "AR",
+            TaxIdentificationNumber = "20-12345678-9"
+        },
+        244885 => new BupPersonDto
+        {
+            BupId = personId,
+            FirstName = "María",
+            LastName = "Pérez",
+            RegisteredName = "María Pérez",
+            BirthDate = new DateTime(1990, 7, 3),
+            Gender = 2,
+            PersonType = 1,
+            IdentificationNumber = "244885",
+            IdentificationTypeCode = "DNI",
+            IdentificationIssuerCountry = "AR",
+            TaxIdentificationNumber = "27-87654321-0"
+        },
+        _ => new BupPersonDto
+        {
+            BupId = personId,
+            FirstName = "Dev",
+            LastName = "User",
+            RegisteredName = "Dev User",
+            BirthDate = null,
+            Gender = null,
+            PersonType = 1,
+            IdentificationNumber = personId.ToString(),
+            IdentificationTypeCode = "DNI",
+            IdentificationIssuerCountry = "AR",
+            TaxIdentificationNumber = null
+        }
+    };
 
     private static DateTime? ParseDate(string s)
     {

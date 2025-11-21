@@ -30,6 +30,17 @@ public class BupPhoneService : Application.Services.IBupPhoneService
     {
         try
         {
+            if (!_options.HasConfiguredCredentials())
+            {
+                if (_options.UseMocksWhenUnconfigured)
+                {
+                    _logger?.LogInformation("Returning mock phones for id {PersonId} because BUP is not configured.", personId);
+                    return BuildMockPhones(personId);
+                }
+
+                throw new InvalidOperationException("BUP no está configurado (ClientId/ClientSecret). Configure las credenciales para obtener teléfonos reales.");
+            }
+
             var token = string.IsNullOrWhiteSpace(accessToken)
                 ? await _tokenService.GetTokenAsync(cancellationToken)
                 : accessToken;
@@ -65,24 +76,20 @@ public class BupPhoneService : Application.Services.IBupPhoneService
         catch (Exception ex)
         {
             _logger?.LogWarning(ex, "Error obteniendo phones BUP {PersonId}", personId);
-            if (string.IsNullOrWhiteSpace(_options.ClientId))
-            {
-                _logger?.LogInformation("Returning mock phones for id {PersonId} because BUP is not configured.", personId);
-                return personId switch
-                {
-                    19231437 => new List<BupPhoneDto>
-                    {
-                        new BupPhoneDto { PhoneId = 1, AreaPhoneCode = "11", PhoneNumber = "12345678", CompletePhoneNumber = "+54 9 11 1234-5678", CountryPhoneCode = "54", PhoneType = 1, PhoneUseType = 1, HasWhatsapp = true },
-                    },
-                    244885 => new List<BupPhoneDto>
-                    {
-                        new BupPhoneDto { PhoneId = 2, AreaPhoneCode = "11", PhoneNumber = "87654321", CompletePhoneNumber = "+54 11 8765-4321", CountryPhoneCode = "54", PhoneType = 2, PhoneUseType = 1, HasWhatsapp = false },
-                    },
-                    _ => new List<BupPhoneDto>()
-                };
-            }
-
             throw;
         }
     }
+
+    private static IEnumerable<BupPhoneDto> BuildMockPhones(int personId) => personId switch
+    {
+        19231437 => new List<BupPhoneDto>
+        {
+            new BupPhoneDto { PhoneId = 1, AreaPhoneCode = "11", PhoneNumber = "12345678", CompletePhoneNumber = "+54 9 11 1234-5678", CountryPhoneCode = "54", PhoneType = 1, PhoneUseType = 1, HasWhatsapp = true },
+        },
+        244885 => new List<BupPhoneDto>
+        {
+            new BupPhoneDto { PhoneId = 2, AreaPhoneCode = "11", PhoneNumber = "87654321", CompletePhoneNumber = "+54 11 8765-4321", CountryPhoneCode = "54", PhoneType = 2, PhoneUseType = 1, HasWhatsapp = false },
+        },
+        _ => new List<BupPhoneDto>()
+    };
 }
