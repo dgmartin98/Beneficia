@@ -24,6 +24,10 @@ try
     builder.AddConfigFiles();
     builder.ConfigureSerilog();
 
+    var swaggerSettings = builder.Configuration
+        .GetSection(SwaggerUiSettings.SectionName)
+        .Get<SwaggerUiSettings>() ?? new SwaggerUiSettings();
+
     builder.Services
         .AddStandardApiServices(options =>
         {
@@ -67,7 +71,7 @@ try
         ? StandardApiOptions.Production
         : StandardApiOptions.Development); // Configurar middleware estándar de API
 
-    app.UseApiSwagger();
+    app.UseApiSwagger(swaggerSettings);
 
 
     if (app.Environment.IsDevelopment())
@@ -78,10 +82,10 @@ try
     app.MapEndpointsFromAssembly(Assembly.Load("Api"));
     app.MapEndpointsFromAssembly(Assembly.Load("Application"));
 
-    // In Development open the browser automatically to the first configured url (safe dev-only behavior)
-    if (app.Environment.IsDevelopment())
+    // Open the browser automatically using the configured Swagger settings
+    if (swaggerSettings.AutoOpenBrowser)
     {
-        var url = app.Urls.FirstOrDefault() ?? "https://localhost:5003";
+        var url = swaggerSettings.BuildLaunchUrl(app.Urls.FirstOrDefault() ?? "https://localhost:5003");
         try
         {
             var psi = new ProcessStartInfo { FileName = url, UseShellExecute = true };
