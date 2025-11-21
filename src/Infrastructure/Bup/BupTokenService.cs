@@ -44,7 +44,7 @@ public class BupTokenService : Application.Services.IBupTokenService
                 return _accessToken;
 
             // If credentials are not configured, return a local mock token for development
-            if (string.IsNullOrWhiteSpace(_options.ClientId) || string.IsNullOrWhiteSpace(_options.ClientSecret))
+            if (!_options.HasConfiguredCredentials())
             {
                 _logger?.LogWarning("BUP credentials not configured (ClientId/ClientSecret). Using local mock token for development.");
                 _accessToken = "local-dev-token";
