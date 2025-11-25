@@ -1,17 +1,25 @@
 using Application.Persons;
 using Microsoft.Extensions.Options;
 using Application.Persons.GetPersonById;
+using Application.Persons.GetPhoneToken;
+using Application.Persons.GetPhones;
+using Application.Persons.GetPersonOnly;
+using Application.Persons.GetPersonToken;
 
 namespace Api.Persons;
 
 /// <summary>
 /// Endpoints relacionados con el recurso Persons.
 /// </summary>
-public class PersonsEndpoint : IEndpoint
+public static class PersonsEndpoint
 {
-    public static void MapEndpoint(IEndpointRouteBuilder app)
+    // 👇 ESTE NOMBRE ES OBLIGATORIO PARA QUE MapEndpointsFromAssembly lo detecte
+    public static void DefineEndpoints(IEndpointRouteBuilder app)
     {
-        app.MapGet("api/persons/{personId:int}", async (
+        var group = app.MapGroup("api/persons")
+            .WithTags("Persons");
+
+        group.MapGet("/{personId:int}", async (
                 [FromRoute] int personId,
                 ISender sender,
                 IOptions<Infrastructure.Bup.BupApiOptions> bupOptions,
@@ -31,12 +39,67 @@ public class PersonsEndpoint : IEndpoint
                 }
             })
             .WithName("Persons_GetById")
-            .WithTags("Persons")
-            .WithSummary("Obtiene una persona por su Id")
-            .WithDescription("Expone un mock inicial que será reemplazado por acceso a base de datos en el futuro.")
+            .WithSummary("Obtiene la información extendida de una persona")
+            .WithDescription("Obtiene los datos de People y Phones de BUP para la persona solicitada.")
             .Produces<Application.Persons.Dtos.BupPersonDto>(StatusCodes.Status200OK)
             .ProducesValidationProblem()
             .ProducesProblem(StatusCodes.Status404NotFound)
+            .ProducesProblem(StatusCodes.Status500InternalServerError);
+
+        group.MapGet("/{personId:int}/people", async (
+                [FromRoute] int personId,
+                ISender sender,
+                CancellationToken cancellationToken) =>
+            {
+                var result = await sender.Send(new GetPersonOnlyQuery(personId), cancellationToken);
+                return result.ToHttpResult();
+            })
+            .WithName("Persons_GetPeople")
+            .WithSummary("Obtiene únicamente la información de People para una persona")
+            .Produces<Application.Persons.Dtos.BupPersonDto>(StatusCodes.Status200OK)
+            .ProducesValidationProblem()
+            .ProducesProblem(StatusCodes.Status404NotFound)
+            .ProducesProblem(StatusCodes.Status500InternalServerError);
+
+        group.MapGet("/{personId:int}/phones", async (
+                [FromRoute] int personId,
+                ISender sender,
+                CancellationToken cancellationToken) =>
+            {
+                var result = await sender.Send(new GetPhonesByPersonIdQuery(personId), cancellationToken);
+                return result.ToHttpResult();
+            })
+            .WithName("Persons_GetPhones")
+            .WithSummary("Obtiene únicamente los teléfonos de una persona")
+            .Produces<IEnumerable<Application.Persons.Dtos.BupPhoneDto>>(StatusCodes.Status200OK)
+            .ProducesValidationProblem()
+            .ProducesProblem(StatusCodes.Status404NotFound)
+            .ProducesProblem(StatusCodes.Status500InternalServerError);
+
+        group.MapGet("/token/phones", async (
+                ISender sender,
+                CancellationToken cancellationToken) =>
+            {
+                var result = await sender.Send(new GetPhoneTokenQuery(), cancellationToken);
+                return result.ToHttpResult();
+            })
+            .WithName("Persons_GetPhoneToken")
+            .WithSummary("Obtiene un token para el servicio de teléfonos BUP")
+            .Produces<string>(StatusCodes.Status200OK)
+            .ProducesValidationProblem()
+            .ProducesProblem(StatusCodes.Status500InternalServerError);
+
+        group.MapGet("/token/people", async (
+                ISender sender,
+                CancellationToken cancellationToken) =>
+            {
+                var result = await sender.Send(new GetPersonTokenQuery(), cancellationToken);
+                return result.ToHttpResult();
+            })
+            .WithName("Persons_GetPeopleToken")
+            .WithSummary("Obtiene un token para el servicio de personas BUP")
+            .Produces<string>(StatusCodes.Status200OK)
+            .ProducesValidationProblem()
             .ProducesProblem(StatusCodes.Status500InternalServerError);
     }
 }
