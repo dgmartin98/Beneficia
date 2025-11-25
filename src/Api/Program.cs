@@ -29,6 +29,7 @@ try
         .Get<SwaggerUiSettings>() ?? new SwaggerUiSettings();
 
     builder.Services
+        .AddEndpointsApiExplorer()
         .AddStandardApiServices(options =>
         {
             options.JsonNamingPolicy = JsonNamingPolicy.CamelCase;
@@ -85,7 +86,7 @@ try
     // Open the browser automatically using the configured Swagger settings
     if (swaggerSettings.AutoOpenBrowser)
     {
-        var url = swaggerSettings.BuildLaunchUrl(app.Urls.FirstOrDefault() ?? "https://localhost:5003");
+        var url = swaggerSettings.BuildLaunchUrl(app.Urls.FirstOrDefault() ?? "https://localhost:7057");
         try
         {
             var psi = new ProcessStartInfo { FileName = url, UseShellExecute = true };
