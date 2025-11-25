@@ -16,19 +16,21 @@ public class BupPhoneService : Application.Services.IBupPhoneService
     private readonly BupApiOptions _options;
     private readonly JsonSerializerOptions _jsonOptions;
     private readonly ILogger<BupPhoneService> _logger;
+    private readonly string _httpClientName;
 
-    public BupPhoneService(IHttpClientFactory factory, Application.Services.IBupTokenService tokenService, IOptions<BupApiOptions> options, ILogger<BupPhoneService> logger)
+    public BupPhoneService(IHttpClientFactory factory, Application.Services.IBupTokenService tokenService, IOptions<BupApiOptions> options, ILogger<BupPhoneService> logger, string httpClientName)
     {
         _factory = factory;
         _tokenService = tokenService;
         _options = options.Value;
         _jsonOptions = new JsonSerializerOptions { PropertyNameCaseInsensitive = true, PropertyNamingPolicy = JsonNamingPolicy.CamelCase };
         _logger = logger;
+        _httpClientName = httpClientName;
     }
 
     public async Task<IEnumerable<BupPhoneDto>> GetPhonesByPersonIdAsync(int personId, string? accessToken, CancellationToken cancellationToken)
     {
-        if (!_options.HasConfiguredClientId())
+        if (!_options.HasConfiguredClientId(BupServiceType.Phones))
         {
             _logger?.LogInformation("Returning mock phones for id {PersonId} because BUP is not configured.", personId);
             return BuildMockPhones(personId);
@@ -36,7 +38,7 @@ public class BupPhoneService : Application.Services.IBupPhoneService
 
         try
         {
-            if (!_options.HasConfiguredCredentials())
+            if (!_options.HasConfiguredCredentials(BupServiceType.Phones))
             {
                 if (_options.UseMocksWhenUnconfigured)
                 {
@@ -48,14 +50,14 @@ public class BupPhoneService : Application.Services.IBupPhoneService
             }
 
             var token = string.IsNullOrWhiteSpace(accessToken)
-                ? await _tokenService.GetTokenAsync(cancellationToken)
+                ? await _tokenService.GetTokenAsync(BupServiceType.Phones, cancellationToken)
                 : accessToken;
-            var client = _factory.CreateClient("BupApi");
-            _logger?.LogInformation("Llamando BUP phones para persona {PersonId} (catalogo {Catalog}, usuario {Username})", personId, _options.Catalog, _options.Username);
+            var client = _factory.CreateClient(_httpClientName);
+            _logger?.LogInformation("Llamando BUP phones para persona {PersonId} (catalogo {Catalog}, usuario {Username})", personId, _options.Catalog, _options.GetUsername(BupServiceType.Phones));
             using var request = new HttpRequestMessage(HttpMethod.Get, $"people/{personId}/phones");
             request.Headers.Authorization = new AuthenticationHeaderValue("Bearer", token);
-            request.Headers.Add("X-IBM-Client-Id", _options.ClientId);
-            request.Headers.Add("UserName", _options.Username);
+            request.Headers.Add("X-IBM-Client-Id", _options.GetClientId(BupServiceType.Phones));
+            request.Headers.Add("UserName", _options.GetUsername(BupServiceType.Phones));
 
             var response = await client.SendAsync(request, cancellationToken);
             _logger?.LogInformation("Respuesta BUP phones {PersonId}: {StatusCode}", personId, response.StatusCode);
