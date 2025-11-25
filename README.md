@@ -74,3 +74,8 @@ dotnet run --project src/Api
 ```
 
 La API estará disponible en: `https://localhost:7057/swagger`
+
+### Logs locales en desarrollo
+
+- El logging usa Serilog y, en desarrollo, el archivo `src/Api/logSettings.Development.json` tiene activado `Serilog:EnableLocalFileLogging` para escribir en `logs/development-.log` (rolling diario).
+- Si querés cambiar la ruta o el template, ajustá la sección `Serilog:LocalFileLogging` en el mismo archivo antes de ejecutar la API.

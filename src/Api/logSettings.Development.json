@@ -1,5 +1,13 @@
 {
   "Serilog": {
+    "EnableLocalFileLogging": true,
+    "LocalFileLogging": {
+      "Path": "logs/development-.log",
+      "RollingInterval": "Day",
+      "RetainedFileCountLimit": 14,
+      "RestrictedToMinimumLevel": "Debug",
+      "OutputTemplate": "[{Timestamp:yyyy-MM-dd HH:mm:ss.fff} {Level:u3}] [{CorrelationId}] [{Usuario}] {Message:lj} {Properties:j}{NewLine}{Exception}"
+    },
     "MinimumLevel": {
       "Default": "Debug",
       "Override": {
