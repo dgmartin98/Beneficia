@@ -51,12 +51,14 @@ public class BupPhoneService : Application.Services.IBupPhoneService
                 ? await _tokenService.GetTokenAsync(cancellationToken)
                 : accessToken;
             var client = _factory.CreateClient("BupApi");
+            _logger?.LogInformation("Llamando BUP phones para persona {PersonId} (catalogo {Catalog}, usuario {Username})", personId, _options.Catalog, _options.Username);
             using var request = new HttpRequestMessage(HttpMethod.Get, $"people/{personId}/phones");
             request.Headers.Authorization = new AuthenticationHeaderValue("Bearer", token);
             request.Headers.Add("X-IBM-Client-Id", _options.ClientId);
             request.Headers.Add("UserName", _options.Username);
 
             var response = await client.SendAsync(request, cancellationToken);
+            _logger?.LogInformation("Respuesta BUP phones {PersonId}: {StatusCode}", personId, response.StatusCode);
             response.EnsureSuccessStatusCode();
 
             var root = await response.Content.ReadFromJsonAsync<BupPhonesRootRaw>(_jsonOptions, cancellationToken)
@@ -65,6 +67,11 @@ public class BupPhoneService : Application.Services.IBupPhoneService
             var ok = root.messages?.Any(m => string.Equals(m.code, "GSS-200-002", StringComparison.OrdinalIgnoreCase)) ?? false;
             if (!ok)
                 throw new InvalidOperationException($"BUP phones service returned errors: {string.Join(',', root.messages?.Select(m => m.code ?? m.message) ?? Array.Empty<string>())}");
+
+            if (root.messages != null && root.messages.Any())
+            {
+                _logger?.LogInformation("Mensajes BUP phones {PersonId}: {Messages}", personId, string.Join(';', root.messages.Select(m => m.code ?? m.message)));
+            }
 
             var phones = root.data?.phones ?? Enumerable.Empty<BupPhoneRaw>();
             return phones.Select(p => new BupPhoneDto

@@ -32,14 +32,22 @@ public class GetPersonByIdQueryHandler : IQueryHandler<GetPersonByIdQuery, BupPe
     {
         try
         {
+            _logger.LogInformation("Iniciando obtención de persona {PersonId}", request.PersonId);
+
             var accessToken = await _tokenService.GetTokenAsync(cancellationToken);
+            _logger.LogInformation("Token obtenido para persona {PersonId}", request.PersonId);
 
             var person = await _personService.GetPersonByIdAsync(request.PersonId, accessToken, cancellationToken);
             if (person == null)
+            {
+                _logger.LogWarning("Persona {PersonId} no encontrada en BUP", request.PersonId);
                 return Result<BupPersonDto>.NotFound("Persona no encontrada");
+            }
 
             var phones = await _phoneService.GetPhonesByPersonIdAsync(request.PersonId, accessToken, cancellationToken);
             person.Phones = phones.ToList();
+
+            _logger.LogInformation("Persona {PersonId} obtenida con {PhoneCount} teléfonos", request.PersonId, person.Phones.Count);
 
             return Result<BupPersonDto>.Success(person);
         }

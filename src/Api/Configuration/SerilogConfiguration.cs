@@ -16,6 +16,7 @@ public static class SerilogConfiguration
             configuration
                 .ReadFrom.Configuration(context.Configuration)
                 .ReadFrom.Services(services)
+                .WriteLocalLogsWhenEnabled(context.Configuration)
                 .Filter.ByExcluding(Matching.WithProperty(pathProperty, "/api/health/live"))
                 .Filter.ByExcluding(Matching.WithProperty(pathProperty, "/api/health/ready"))
                 // Excluye todos los logs relacionados con swagger
@@ -64,5 +65,30 @@ public static class SerilogConfiguration
         });
 
         return app;
+    }
+
+    private static LoggerConfiguration WriteLocalLogsWhenEnabled(this LoggerConfiguration configuration, IConfiguration config)
+    {
+        var enableLocalFileLogging = config.GetValue("Serilog:EnableLocalFileLogging", false);
+        if (!enableLocalFileLogging)
+        {
+            return configuration;
+        }
+
+        var path = config.GetValue<string>("Serilog:LocalFileLogging:Path") ?? "logs/development-.log";
+        var outputTemplate = config.GetValue<string>("Serilog:LocalFileLogging:OutputTemplate") ??
+                             "[{Timestamp:yyyy-MM-dd HH:mm:ss.fff} {Level:u3}] [{CorrelationId}] [{Usuario}] {Message:lj} {Properties:j}{NewLine}{Exception}";
+        var rollingInterval = config.GetValue("Serilog:LocalFileLogging:RollingInterval", RollingInterval.Day);
+        var retainedFileCountLimit = config.GetValue<int?>("Serilog:LocalFileLogging:RetainedFileCountLimit");
+        var restrictedToMinimumLevel = config.GetValue("Serilog:LocalFileLogging:RestrictedToMinimumLevel", LogEventLevel.Debug);
+
+        configuration.WriteTo.File(
+            path: path,
+            rollingInterval: rollingInterval,
+            retainedFileCountLimit: retainedFileCountLimit,
+            outputTemplate: outputTemplate,
+            restrictedToMinimumLevel: restrictedToMinimumLevel);
+
+        return configuration;
     }
 }

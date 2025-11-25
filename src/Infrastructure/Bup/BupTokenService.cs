@@ -35,13 +35,19 @@ public class BupTokenService : Application.Services.IBupTokenService
     public async Task<string> GetTokenAsync(CancellationToken cancellationToken)
     {
         if (!string.IsNullOrEmpty(_accessToken) && DateTimeOffset.UtcNow < _expiresAt)
+        {
+            _logger?.LogDebug("Usando token BUP cacheado, válido hasta {ExpiresAt}", _expiresAt);
             return _accessToken;
+        }
 
         await _semaphore.WaitAsync(cancellationToken);
         try
         {
             if (!string.IsNullOrEmpty(_accessToken) && DateTimeOffset.UtcNow < _expiresAt)
+            {
+                _logger?.LogDebug("Usando token BUP cacheado luego de esperar, válido hasta {ExpiresAt}", _expiresAt);
                 return _accessToken;
+            }
 
 
             if (!_options.HasConfiguredCredentials())
@@ -73,7 +79,9 @@ public class BupTokenService : Application.Services.IBupTokenService
 
             try
             {
+                _logger?.LogInformation("Solicitando nuevo token BUP (catalogo {Catalog})", _options.Catalog);
                 var response = await client.SendAsync(request, cancellationToken);
+                _logger?.LogInformation("Respuesta de token BUP: {StatusCode}", response.StatusCode);
                 response.EnsureSuccessStatusCode();
 
                 var raw = await response.Content.ReadFromJsonAsync<BupTokenRaw>(_jsonOptions, cancellationToken);
@@ -83,6 +91,8 @@ public class BupTokenService : Application.Services.IBupTokenService
                 _accessToken = raw.access_token;
                 var expiresIn = raw.expires_in ?? 300;
                 _expiresAt = DateTimeOffset.UtcNow.AddSeconds(expiresIn - 30);
+
+                _logger?.LogInformation("Token BUP obtenido, expira a las {ExpiresAt}", _expiresAt);
 
                 return _accessToken;
             }
