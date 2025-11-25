@@ -1,11 +1,13 @@
+using System.Collections.Generic;
 using System.Net.Http.Headers;
 using System.Net.Http.Json;
 using System.Text;
 using System.Text.Json;
-using Infrastructure.Bup.Models;
-using Microsoft.Extensions.Options;
-using Microsoft.Extensions.Logging;
+using System.Threading;
 using Application.Services;
+using Infrastructure.Bup.Models;
+using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Options;
 
 namespace Infrastructure.Bup;
 
@@ -15,12 +17,18 @@ public class BupTokenService : Application.Services.IBupTokenService
     private readonly BupApiOptions _options;
     private readonly JsonSerializerOptions _jsonOptions;
     private readonly ILogger<BupTokenService> _logger;
-    private readonly SemaphoreSlim _semaphore = new(1, 1);
+    private readonly Dictionary<BupServiceType, TokenCache> _tokenCache;
+    private readonly string _peopleClientName;
+    private readonly string _phonesClientName;
 
-    private string? _accessToken;
-    private DateTimeOffset _expiresAt = DateTimeOffset.MinValue;
+    private sealed class TokenCache
+    {
+        public SemaphoreSlim Semaphore { get; } = new(1, 1);
+        public string? AccessToken { get; set; }
+        public DateTimeOffset ExpiresAt { get; set; } = DateTimeOffset.MinValue;
+    }
 
-    public BupTokenService(IHttpClientFactory factory, IOptions<BupApiOptions> options, ILogger<BupTokenService> logger)
+    public BupTokenService(IHttpClientFactory factory, IOptions<BupApiOptions> options, ILogger<BupTokenService> logger, string peopleClientName, string phonesClientName)
     {
         _factory = factory;
         _options = options.Value;
@@ -30,40 +38,47 @@ public class BupTokenService : Application.Services.IBupTokenService
             PropertyNamingPolicy = JsonNamingPolicy.CamelCase
         };
         _logger = logger;
+        _peopleClientName = peopleClientName;
+        _phonesClientName = phonesClientName;
+        _tokenCache = new Dictionary<BupServiceType, TokenCache>
+        {
+            [BupServiceType.Person] = new TokenCache(),
+            [BupServiceType.Phones] = new TokenCache()
+        };
     }
 
-    public async Task<string> GetTokenAsync(CancellationToken cancellationToken)
+    public async Task<string> GetTokenAsync(BupServiceType serviceType, CancellationToken cancellationToken)
     {
-        if (!string.IsNullOrEmpty(_accessToken) && DateTimeOffset.UtcNow < _expiresAt)
+        var cache = _tokenCache[serviceType];
+        if (!string.IsNullOrEmpty(cache.AccessToken) && DateTimeOffset.UtcNow < cache.ExpiresAt)
         {
-            _logger?.LogDebug("Usando token BUP cacheado, válido hasta {ExpiresAt}", _expiresAt);
-            return _accessToken;
+            _logger?.LogDebug("Usando token BUP cacheado para {ServiceType}, válido hasta {ExpiresAt}", serviceType, cache.ExpiresAt);
+            return cache.AccessToken;
         }
 
-        await _semaphore.WaitAsync(cancellationToken);
+        await cache.Semaphore.WaitAsync(cancellationToken);
         try
         {
-            if (!string.IsNullOrEmpty(_accessToken) && DateTimeOffset.UtcNow < _expiresAt)
+            if (!string.IsNullOrEmpty(cache.AccessToken) && DateTimeOffset.UtcNow < cache.ExpiresAt)
             {
-                _logger?.LogDebug("Usando token BUP cacheado luego de esperar, válido hasta {ExpiresAt}", _expiresAt);
-                return _accessToken;
+                _logger?.LogDebug("Usando token BUP cacheado para {ServiceType} luego de esperar, válido hasta {ExpiresAt}", serviceType, cache.ExpiresAt);
+                return cache.AccessToken;
             }
 
-
-            if (!_options.HasConfiguredCredentials())
+            if (!_options.HasConfiguredCredentials(serviceType))
             {
                 if (_options.UseMocksWhenUnconfigured)
                 {
-                    _logger?.LogWarning("BUP credentials not configured (ClientId/ClientSecret). Using local mock token for development.");
-                    _accessToken = "local-dev-token";
-                    _expiresAt = DateTimeOffset.UtcNow.AddHours(1);
-                    return _accessToken;
+                    _logger?.LogWarning("BUP credentials not configured for {ServiceType}. Using local mock token for development.", serviceType);
+                    cache.AccessToken = "local-dev-token";
+                    cache.ExpiresAt = DateTimeOffset.UtcNow.AddHours(1);
+                    return cache.AccessToken;
                 }
 
                 throw new InvalidOperationException("BUP no está configurado (ClientId/ClientSecret). Configure las credenciales para solicitar tokens reales.");
             }
 
-            var client = _factory.CreateClient("BupApi");
+            var client = _factory.CreateClient(GetClientName(serviceType));
 
             var request = new HttpRequestMessage(HttpMethod.Post, "security/oauth2/token")
             {
@@ -74,38 +89,44 @@ public class BupTokenService : Application.Services.IBupTokenService
                 })
             };
 
-            var basic = Convert.ToBase64String(Encoding.UTF8.GetBytes($"{_options.ClientId}:{_options.ClientSecret}"));
+            var basic = Convert.ToBase64String(Encoding.UTF8.GetBytes($"{_options.GetClientId(serviceType)}:{_options.GetClientSecret(serviceType)}"));
             request.Headers.Authorization = new AuthenticationHeaderValue("Basic", basic);
 
             try
             {
-                _logger?.LogInformation("Solicitando nuevo token BUP (catalogo {Catalog})", _options.Catalog);
+                _logger?.LogInformation("Solicitando nuevo token BUP para {ServiceType} (catalogo {Catalog})", serviceType, _options.Catalog);
                 var response = await client.SendAsync(request, cancellationToken);
-                _logger?.LogInformation("Respuesta de token BUP: {StatusCode}", response.StatusCode);
+                _logger?.LogInformation("Respuesta de token BUP {ServiceType}: {StatusCode}", serviceType, response.StatusCode);
                 response.EnsureSuccessStatusCode();
 
                 var raw = await response.Content.ReadFromJsonAsync<BupTokenRaw>(_jsonOptions, cancellationToken);
                 if (raw?.access_token == null)
                     throw new InvalidOperationException("No se obtuvo access_token desde BUP");
 
-                _accessToken = raw.access_token;
+                cache.AccessToken = raw.access_token;
                 var expiresIn = raw.expires_in ?? 300;
-                _expiresAt = DateTimeOffset.UtcNow.AddSeconds(expiresIn - 30);
+                cache.ExpiresAt = DateTimeOffset.UtcNow.AddSeconds(expiresIn - 30);
 
-                _logger?.LogInformation("Token BUP obtenido, expira a las {ExpiresAt}", _expiresAt);
+                _logger?.LogInformation("Token BUP obtenido para {ServiceType}, expira a las {ExpiresAt}", serviceType, cache.ExpiresAt);
 
-                return _accessToken;
+                return cache.AccessToken;
             }
             catch (HttpRequestException ex)
             {
-                _logger?.LogWarning(ex, "Error obteniendo token desde BUP.");
-                // If we can't reach BUP but credentials are present, rethrow so caller knows.
+                _logger?.LogWarning(ex, "Error obteniendo token desde BUP para {ServiceType}.", serviceType);
                 throw;
             }
         }
         finally
         {
-            _semaphore.Release();
+            cache.Semaphore.Release();
         }
     }
+
+    private string GetClientName(BupServiceType serviceType) => serviceType switch
+    {
+        BupServiceType.Person => _peopleClientName,
+        BupServiceType.Phones => _phonesClientName,
+        _ => _phonesClientName
+    };
 }
