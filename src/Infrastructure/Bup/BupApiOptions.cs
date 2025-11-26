@@ -35,12 +35,28 @@ public sealed class BupApiOptions
     private static string ResolveValue(string? preferred, string fallback)
         => string.IsNullOrWhiteSpace(preferred) || IsPlaceholder(preferred) ? fallback : preferred;
 
-    public string GetBaseUrl(BupServiceType serviceType) => serviceType switch
+    private string EnsureCatalogInUrl(string url)
+    {
+        if (string.IsNullOrWhiteSpace(url))
+            return url;
+
+        var catalog = Catalog.ToLowerInvariant();
+        var normalized = url
+            .Replace("{catalog}", catalog, StringComparison.OrdinalIgnoreCase)
+            .Replace("{Catalog}", catalog, StringComparison.OrdinalIgnoreCase)
+            .TrimEnd('/');
+
+        return normalized.Contains($"/{catalog}", StringComparison.OrdinalIgnoreCase)
+            ? normalized
+            : $"{normalized}/{catalog}";
+    }
+
+    public string GetBaseUrl(BupServiceType serviceType) => EnsureCatalogInUrl(serviceType switch
     {
         BupServiceType.Person => ResolveValue(PersonBaseUrl, DefaultExternalBaseUrl),
         BupServiceType.Phones => ResolveValue(PhonesBaseUrl, DefaultExternalBaseUrl),
         _ => DefaultExternalBaseUrl
-    };
+    });
 
     public string GetClientId(BupServiceType serviceType) => serviceType switch
     {
