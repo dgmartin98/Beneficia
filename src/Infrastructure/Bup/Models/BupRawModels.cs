@@ -40,6 +40,7 @@ internal sealed class BupPersonDataRaw
     public int? personType { get; set; }
     public BupDocumentRaw? document { get; set; }
     public BupTributaryRaw? tributaryCode { get; set; }
+    public IEnumerable<BupPhoneRaw>? phones { get; set; }
 }
 
 internal sealed class BupPersonRootRaw
