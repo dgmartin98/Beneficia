@@ -11,10 +11,9 @@ namespace Api.Persons;
 /// <summary>
 /// Endpoints relacionados con el recurso Persons.
 /// </summary>
-public static class PersonsEndpoint
+public class PersonsEndpoint : IEndpoint
 {
-    // 👇 ESTE NOMBRE ES OBLIGATORIO PARA QUE MapEndpointsFromAssembly lo detecte
-    public static void DefineEndpoints(IEndpointRouteBuilder app)
+    public static void MapEndpoint(IEndpointRouteBuilder app)
     {
         var group = app.MapGroup("api/persons")
             .WithTags("Persons");
