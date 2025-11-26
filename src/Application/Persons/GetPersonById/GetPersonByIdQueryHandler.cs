@@ -5,6 +5,7 @@ using Gss.Results;
 using Gss.Mediator;
 using Microsoft.Extensions.Logging;
 using Microsoft.EntityFrameworkCore;
+using System.Collections.Generic;
 using System.Linq;
 
 namespace Application.Persons.GetPersonById;
@@ -54,10 +55,12 @@ public class GetPersonByIdQueryHandler : IQueryHandler<GetPersonByIdQuery, BupPe
             }
 
             var phones = await _phoneService.GetPhonesByPersonIdAsync(request.PersonId, phoneToken, cancellationToken);
-            person.Phones = phones.ToList();
+            var primaryPhone = phones.FirstOrDefault();
+            person.Phones = primaryPhone is null ? new List<BupPhoneDto>() : new List<BupPhoneDto> { primaryPhone };
 
             var emails = await _emailService.GetEmailsByPersonIdAsync(request.PersonId, emailToken, cancellationToken);
-            person.Emails = emails.ToList();
+            var primaryEmail = emails.FirstOrDefault();
+            person.Emails = primaryEmail is null ? new List<BupEmailDto>() : new List<BupEmailDto> { primaryEmail };
 
             _logger.LogInformation("Persona {PersonId} obtenida con {PhoneCount} teléfonos", request.PersonId, person.Phones.Count);
 
