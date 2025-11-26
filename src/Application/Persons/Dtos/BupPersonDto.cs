@@ -16,4 +16,5 @@ public sealed class BupPersonDto
     public int? PersonType { get; set; }
     public DateTime? BirthDate { get; set; }
     public List<BupPhoneDto> Phones { get; set; } = new();
+    public List<BupEmailDto> Emails { get; set; } = new();
 }

@@ -3,5 +3,6 @@ namespace Application.Services;
 public enum BupServiceType
 {
     Person,
-    Phones
+    Phones,
+    Emails
 }
