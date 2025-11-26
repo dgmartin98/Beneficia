@@ -6,6 +6,7 @@ using Application.Persons.GetEmails;
 using Application.Persons.GetPhones;
 using Application.Persons.GetPersonOnly;
 using Application.Persons.GetPersonToken;
+using Application.Persons.GetAddresses;
 
 namespace Api.Persons;
 
@@ -87,6 +88,21 @@ public class PersonsEndpoint : IEndpoint
             .WithName("Persons_GetEmails")
             .WithSummary("Obtiene únicamente los emails de una persona")
             .Produces<IEnumerable<Application.Persons.Dtos.BupEmailDto>>(StatusCodes.Status200OK)
+            .ProducesValidationProblem()
+            .ProducesProblem(StatusCodes.Status404NotFound)
+            .ProducesProblem(StatusCodes.Status500InternalServerError);
+
+        group.MapGet("/{personId:int}/addresses", async (
+                [FromRoute] int personId,
+                ISender sender,
+                CancellationToken cancellationToken) =>
+            {
+                var result = await sender.Send(new GetAddressesByPersonIdQuery(personId), cancellationToken);
+                return result.ToHttpResult();
+            })
+            .WithName("Persons_GetAddresses")
+            .WithSummary("Obtiene únicamente los domicilios de una persona")
+            .Produces<IEnumerable<Application.Persons.Dtos.BupAddressDto>>(StatusCodes.Status200OK)
             .ProducesValidationProblem()
             .ProducesProblem(StatusCodes.Status404NotFound)
             .ProducesProblem(StatusCodes.Status500InternalServerError);
