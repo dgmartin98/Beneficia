@@ -19,15 +19,17 @@ public class GetPersonByIdQueryHandler : IQueryHandler<GetPersonByIdQuery, BupPe
     private readonly IBupPersonService _personService;
     private readonly IBupPhoneService _phoneService;
     private readonly IBupEmailService _emailService;
+    private readonly IBupAddressService _addressService;
     private readonly IBupTokenService _tokenService;
     private readonly ILogger<GetPersonByIdQueryHandler> _logger;
 
-    public GetPersonByIdQueryHandler(IAppDbContext dbContext, IBupPersonService personService, IBupPhoneService phoneService, IBupEmailService emailService, IBupTokenService tokenService, ILogger<GetPersonByIdQueryHandler> logger)
+    public GetPersonByIdQueryHandler(IAppDbContext dbContext, IBupPersonService personService, IBupPhoneService phoneService, IBupEmailService emailService, IBupAddressService addressService, IBupTokenService tokenService, ILogger<GetPersonByIdQueryHandler> logger)
     {
         _dbContext = dbContext ?? throw new ArgumentNullException(nameof(dbContext));
         _personService = personService ?? throw new ArgumentNullException(nameof(personService));
         _phoneService = phoneService ?? throw new ArgumentNullException(nameof(phoneService));
         _emailService = emailService ?? throw new ArgumentNullException(nameof(emailService));
+        _addressService = addressService ?? throw new ArgumentNullException(nameof(addressService));
         _tokenService = tokenService ?? throw new ArgumentNullException(nameof(tokenService));
         _logger = logger ?? throw new ArgumentNullException(nameof(logger));
     }
@@ -47,6 +49,9 @@ public class GetPersonByIdQueryHandler : IQueryHandler<GetPersonByIdQuery, BupPe
             var emailToken = await _tokenService.GetTokenAsync(BupServiceType.Emails, cancellationToken);
             _logger.LogInformation("Token de emails obtenido para {PersonId}", request.PersonId);
 
+            var addressToken = await _tokenService.GetTokenAsync(BupServiceType.Addresses, cancellationToken);
+            _logger.LogInformation("Token de domicilios obtenido para {PersonId}", request.PersonId);
+
             var person = await _personService.GetPersonByIdAsync(request.PersonId, personToken, cancellationToken);
             if (person == null)
             {
@@ -61,6 +66,10 @@ public class GetPersonByIdQueryHandler : IQueryHandler<GetPersonByIdQuery, BupPe
             var emails = await _emailService.GetEmailsByPersonIdAsync(request.PersonId, emailToken, cancellationToken);
             var primaryEmail = emails.FirstOrDefault();
             person.Emails = primaryEmail is null ? new List<BupEmailDto>() : new List<BupEmailDto> { primaryEmail };
+
+            var addresses = await _addressService.GetAddressesByPersonIdAsync(request.PersonId, addressToken, cancellationToken);
+            var primaryAddress = addresses.FirstOrDefault();
+            person.Addresses = primaryAddress is null ? new List<BupAddressDto>() : new List<BupAddressDto> { primaryAddress };
 
             _logger.LogInformation("Persona {PersonId} obtenida con {PhoneCount} teléfonos", request.PersonId, person.Phones.Count);
 

@@ -27,10 +27,14 @@ public sealed class BupApiOptions
     public string? EmailsClientId { get; set; }
     public string? EmailsClientSecret { get; set; }
     public string? EmailsUsername { get; set; }
+    public string? AddressesClientId { get; set; }
+    public string? AddressesClientSecret { get; set; }
+    public string? AddressesUsername { get; set; }
 
     public string? PersonBaseUrl { get; set; }
     public string? PhonesBaseUrl { get; set; }
     public string? EmailsBaseUrl { get; set; }
+    public string? AddressesBaseUrl { get; set; }
 
     public bool UseMocksWhenUnconfigured { get; set; } = false;
 
@@ -62,6 +66,7 @@ public sealed class BupApiOptions
         BupServiceType.Person => ResolveValue(PersonBaseUrl, DefaultExternalBaseUrl),
         BupServiceType.Phones => ResolveValue(PhonesBaseUrl, DefaultExternalBaseUrl),
         BupServiceType.Emails => ResolveValue(EmailsBaseUrl, DefaultExternalBaseUrl),
+        BupServiceType.Addresses => ResolveValue(AddressesBaseUrl, DefaultExternalBaseUrl),
         _ => DefaultExternalBaseUrl
     });
 
@@ -70,6 +75,7 @@ public sealed class BupApiOptions
         BupServiceType.Person => ResolveValue(PersonClientId, ClientId),
         BupServiceType.Phones => ResolveValue(PhonesClientId, ClientId),
         BupServiceType.Emails => ResolveValue(EmailsClientId, ClientId),
+        BupServiceType.Addresses => ResolveValue(AddressesClientId, ClientId),
         _ => ClientId
     };
 
@@ -78,6 +84,7 @@ public sealed class BupApiOptions
         BupServiceType.Person => ResolveValue(PersonClientSecret, ClientSecret),
         BupServiceType.Phones => ResolveValue(PhonesClientSecret, ClientSecret),
         BupServiceType.Emails => ResolveValue(EmailsClientSecret, ClientSecret),
+        BupServiceType.Addresses => ResolveValue(AddressesClientSecret, ClientSecret),
         _ => ClientSecret
     };
 
@@ -86,6 +93,7 @@ public sealed class BupApiOptions
         BupServiceType.Person => ResolveValue(PersonUsername, Username),
         BupServiceType.Phones => ResolveValue(PhonesUsername, Username),
         BupServiceType.Emails => ResolveValue(EmailsUsername, Username),
+        BupServiceType.Addresses => ResolveValue(AddressesUsername, Username),
         _ => Username
     };
 
