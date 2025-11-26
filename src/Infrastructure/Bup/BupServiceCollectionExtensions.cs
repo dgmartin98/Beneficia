@@ -9,8 +9,8 @@ namespace Infrastructure.Bup;
 
 public static class BupServiceCollectionExtensions
 {
-    private const string PhonesClientName = "BupPhonesApi";
-    private const string PeopleClientName = "BupPeopleApi";
+    public const string PhonesClientName = "BupPhonesApi";
+    public const string PeopleClientName = "BupPeopleApi";
 
     public static IServiceCollection AddBupServices(this IServiceCollection services, IConfiguration configuration)
     {

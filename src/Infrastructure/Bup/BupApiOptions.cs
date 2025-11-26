@@ -46,9 +46,11 @@ public sealed class BupApiOptions
             .Replace("{Catalog}", catalog, StringComparison.OrdinalIgnoreCase)
             .TrimEnd('/');
 
-        return normalized.Contains($"/{catalog}", StringComparison.OrdinalIgnoreCase)
+        var ensured = normalized.Contains($"/{catalog}", StringComparison.OrdinalIgnoreCase)
             ? normalized
             : $"{normalized}/{catalog}";
+
+        return ensured.EndsWith("/", StringComparison.Ordinal) ? ensured : $"{ensured}/";
     }
 
     public string GetBaseUrl(BupServiceType serviceType) => EnsureCatalogInUrl(serviceType switch
