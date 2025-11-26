@@ -27,6 +27,7 @@ public static class ClienteEndpoints
         })
         .WithSummary("Obtiene información de un cliente")
         .WithDescription("Devuelve un objeto mock con datos de cliente.")
+        .WithOpenApi()
         .Produces<ClienteResponse>(StatusCodes.Status200OK);
     }
 }
