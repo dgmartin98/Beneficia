@@ -3,10 +3,9 @@ using Microsoft.AspNetCore.Routing;
 
 namespace Api.Endpoints;
 
-public static class ClienteEndpoints
-{
-    // 👇 ESTE NOMBRE ES OBLIGATORIO PARA QUE MapEndpointsFromAssembly lo detecte
-    public static void DefineEndpoints(IEndpointRouteBuilder app)
+public class ClienteEndpoints : IEndpoint
+{    
+    public static void MapEndpoint(IEndpointRouteBuilder app)
     {
         var group = app.MapGroup("/api/cliente")
                        .WithTags("Cliente");

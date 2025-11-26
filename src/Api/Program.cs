@@ -72,9 +72,6 @@ try
         ? StandardApiOptions.Production
         : StandardApiOptions.Development); // Configurar middleware estándar de API
 
-    app.UseApiSwagger(swaggerSettings);
-
-
     if (app.Environment.IsDevelopment())
     {
         app.UseHttpsRedirection();
@@ -82,6 +79,9 @@ try
 
     app.MapEndpointsFromAssembly(Assembly.Load("Api"));
     app.MapEndpointsFromAssembly(Assembly.Load("Application"));
+
+    // Registrar Swagger después de mapear todos los endpoints para que sean incluidos en la UI
+    app.UseApiSwagger(swaggerSettings);
 
     // Open the browser automatically using the configured Swagger settings
     if (swaggerSettings.AutoOpenBrowser)
