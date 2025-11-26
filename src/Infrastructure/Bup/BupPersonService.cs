@@ -1,8 +1,7 @@
 using System.Net.Http.Headers;
-using System.Net.Http.Json;
 using System.Text.Json;
+using System.Linq;
 using Application.Persons.Dtos;
-using Infrastructure.Bup.Models;
 using Microsoft.Extensions.Options;
 using Microsoft.Extensions.Logging;
 using Application.Services;
@@ -14,7 +13,6 @@ public class BupPersonService : Application.Services.IBupPersonService
     private readonly IHttpClientFactory _factory;
     private readonly Application.Services.IBupTokenService _tokenService;
     private readonly BupApiOptions _options;
-    private readonly JsonSerializerOptions _jsonOptions;
     private readonly ILogger<BupPersonService> _logger;
     private readonly string _httpClientName;
 
@@ -23,7 +21,6 @@ public class BupPersonService : Application.Services.IBupPersonService
         _factory = factory;
         _tokenService = tokenService;
         _options = options.Value;
-        _jsonOptions = new JsonSerializerOptions { PropertyNameCaseInsensitive = true, PropertyNamingPolicy = JsonNamingPolicy.CamelCase };
         _logger = logger;
         _httpClientName = httpClientName;
     }
@@ -63,35 +60,45 @@ public class BupPersonService : Application.Services.IBupPersonService
             _logger?.LogInformation("Respuesta BUP persona {PersonId}: {StatusCode}", personId, response.StatusCode);
             response.EnsureSuccessStatusCode();
 
-            var root = await response.Content.ReadFromJsonAsync<BupPersonRootRaw>(_jsonOptions, cancellationToken)
-                ?? throw new InvalidOperationException("Respuesta BUP inválida");
+            var payload = await response.Content.ReadAsStringAsync(cancellationToken);
+            using var document = JsonDocument.Parse(payload);
+            var root = document.RootElement;
 
-            var ok = root.messages?.Any(m => string.Equals(m.code, "GSS-200-002", StringComparison.OrdinalIgnoreCase)) ?? false;
-            if (!ok)
-                throw new InvalidOperationException($"BUP person service returned errors: {string.Join(',', root.messages?.Select(m => m.code ?? m.message) ?? Array.Empty<string>())}");
-
-            if (root.messages != null && root.messages.Any())
+            if (BupJsonUtils.TryGetProperty(root, out var messagesElement, "messages") && messagesElement.ValueKind == JsonValueKind.Array)
             {
-                _logger?.LogInformation("Mensajes BUP persona {PersonId}: {Messages}", personId, string.Join(';', root.messages.Select(m => m.code ?? m.message)));
+                var messages = messagesElement.EnumerateArray().ToList();
+                var ok = messages.Any(m => string.Equals(BupJsonUtils.GetString(m, "code"), "GSS-200-002", StringComparison.OrdinalIgnoreCase));
+                if (!ok)
+                {
+                    throw new InvalidOperationException($"BUP person service returned errors: {string.Join(',', messages.Select(m => BupJsonUtils.GetString(m, "code") ?? BupJsonUtils.GetString(m, "message"))).Trim(',')}");
+                }
+
+                _logger?.LogInformation("Mensajes BUP persona {PersonId}: {Messages}", personId, string.Join(';', messages.Select(m => BupJsonUtils.GetString(m, "code") ?? BupJsonUtils.GetString(m, "message")).Where(m => !string.IsNullOrWhiteSpace(m))));
             }
 
-            var d = root.data;
-            if (d == null)
+            if (!BupJsonUtils.TryGetProperty(root, out var dataElement, "data"))
+            {
+                throw new InvalidOperationException("Respuesta BUP inválida: no se encontró la sección data.");
+            }
+
+            var personElement = ResolvePersonElement(dataElement);
+            if (personElement.ValueKind != JsonValueKind.Object)
                 return null;
 
             var dto = new BupPersonDto
             {
-                BupId = d.bupId,
-                FirstName = d.firstName,
-                LastName = d.lastName,
-                RegisteredName = d.registeredName,
-                BirthDate = ParseDate(d.birthDate),
-                Gender = d.gender,
-                PersonType = d.personType,
-                IdentificationNumber = d.document?.identificationNumber,
-                IdentificationTypeCode = d.document?.identificationTypeCode,
-                IdentificationIssuerCountry = d.document?.identificationIssuerCountry,
-                TaxIdentificationNumber = d.tributaryCode?.taxIdentificationNumber
+                BupId = BupJsonUtils.GetInt(personElement, "bupId"),
+                FirstName = BupJsonUtils.GetString(personElement, "firstName", "givenName"),
+                LastName = BupJsonUtils.GetString(personElement, "lastName", "familyName"),
+                RegisteredName = BupJsonUtils.GetString(personElement, "registeredName", "fullName"),
+                BirthDate = ParseDate(BupJsonUtils.GetString(personElement, "birthDate")),
+                Gender = BupJsonUtils.GetInt(personElement, "gender"),
+                PersonType = BupJsonUtils.GetInt(personElement, "personType"),
+                IdentificationNumber = ExtractDocumentValue(personElement, "identificationNumber"),
+                IdentificationTypeCode = ExtractDocumentValue(personElement, "identificationTypeCode"),
+                IdentificationIssuerCountry = ExtractDocumentValue(personElement, "identificationIssuerCountry"),
+                TaxIdentificationNumber = ExtractTributaryValue(personElement, "taxIdentificationNumber"),
+                Phones = ExtractPhones(personElement, dataElement)
             };
 
             return dto;
@@ -157,5 +164,85 @@ public class BupPersonService : Application.Services.IBupPersonService
         if (DateTime.TryParse(s, out var dt))
             return dt;
         return null;
+    }
+
+    private static JsonElement ResolvePersonElement(JsonElement dataElement)
+    {
+        if (dataElement.ValueKind == JsonValueKind.Object)
+        {
+            if (BupJsonUtils.TryGetProperty(dataElement, out var nested, "person", "persona"))
+                return nested;
+
+            if (BupJsonUtils.TryGetProperty(dataElement, out var personArray, "people") && personArray.ValueKind == JsonValueKind.Array)
+            {
+                return personArray.EnumerateArray().FirstOrDefault();
+            }
+
+            return dataElement;
+        }
+
+        if (dataElement.ValueKind == JsonValueKind.Array)
+            return dataElement.EnumerateArray().FirstOrDefault();
+
+        return default;
+    }
+
+    private static string? ExtractDocumentValue(JsonElement personElement, string propertyName)
+    {
+        if (BupJsonUtils.TryGetProperty(personElement, out var documentElement, "document") && documentElement.ValueKind == JsonValueKind.Object)
+        {
+            return BupJsonUtils.GetString(documentElement, propertyName);
+        }
+
+        return BupJsonUtils.GetString(personElement, propertyName);
+    }
+
+    private static string? ExtractTributaryValue(JsonElement personElement, string propertyName)
+    {
+        if (BupJsonUtils.TryGetProperty(personElement, out var tributaryElement, "tributaryCode", "tributary" ) && tributaryElement.ValueKind == JsonValueKind.Object)
+        {
+            return BupJsonUtils.GetString(tributaryElement, propertyName);
+        }
+
+        return BupJsonUtils.GetString(personElement, propertyName);
+    }
+
+    private static List<BupPhoneDto> ExtractPhones(JsonElement personElement, JsonElement dataElement)
+    {
+        JsonElement phonesElement = default;
+
+        if (!BupJsonUtils.TryGetProperty(personElement, out phonesElement, "phones"))
+        {
+            BupJsonUtils.TryGetProperty(dataElement, out phonesElement, "phones");
+        }
+
+        if (phonesElement.ValueKind != JsonValueKind.Array)
+            return new List<BupPhoneDto>();
+
+        return phonesElement
+            .EnumerateArray()
+            .Where(p => p.ValueKind == JsonValueKind.Object)
+            .Select(p => new BupPhoneDto
+            {
+                PhoneId = BupJsonUtils.GetInt(p, "phoneId"),
+                AreaPhoneCode = BupJsonUtils.GetString(p, "areaPhoneCode"),
+                PhoneNumber = BupJsonUtils.GetString(p, "phoneNumber"),
+                PhoneType = BupJsonUtils.GetInt(p, "phoneType"),
+                PhoneUseType = BupJsonUtils.GetInt(p, "phoneUseType"),
+                CountryPhoneCode = BupJsonUtils.GetString(p, "countryPhoneCode"),
+                CompletePhoneNumber = BupJsonUtils.GetString(p, "completePhoneNumber"),
+                HasWhatsapp = ExtractHasWhatsapp(p)
+            })
+            .ToList();
+    }
+
+    private static bool ExtractHasWhatsapp(JsonElement phoneElement)
+    {
+        if (BupJsonUtils.TryGetProperty(phoneElement, out var certificationElement, "phoneCertification", "certification") && certificationElement.ValueKind == JsonValueKind.Object)
+        {
+            return BupJsonUtils.GetBool(certificationElement, "hasWhatsapp");
+        }
+
+        return BupJsonUtils.GetBool(phoneElement, "hasWhatsapp");
     }
 }

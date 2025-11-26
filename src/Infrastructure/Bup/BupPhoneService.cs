@@ -1,8 +1,7 @@
 using System.Net.Http.Headers;
-using System.Net.Http.Json;
 using System.Text.Json;
+using System.Linq;
 using Application.Persons.Dtos;
-using Infrastructure.Bup.Models;
 using Microsoft.Extensions.Options;
 using Microsoft.Extensions.Logging;
 using Application.Services;
@@ -14,7 +13,6 @@ public class BupPhoneService : Application.Services.IBupPhoneService
     private readonly IHttpClientFactory _factory;
     private readonly Application.Services.IBupTokenService _tokenService;
     private readonly BupApiOptions _options;
-    private readonly JsonSerializerOptions _jsonOptions;
     private readonly ILogger<BupPhoneService> _logger;
     private readonly string _httpClientName;
 
@@ -23,7 +21,6 @@ public class BupPhoneService : Application.Services.IBupPhoneService
         _factory = factory;
         _tokenService = tokenService;
         _options = options.Value;
-        _jsonOptions = new JsonSerializerOptions { PropertyNameCaseInsensitive = true, PropertyNamingPolicy = JsonNamingPolicy.CamelCase };
         _logger = logger;
         _httpClientName = httpClientName;
     }
@@ -63,30 +60,53 @@ public class BupPhoneService : Application.Services.IBupPhoneService
             _logger?.LogInformation("Respuesta BUP phones {PersonId}: {StatusCode}", personId, response.StatusCode);
             response.EnsureSuccessStatusCode();
 
-            var root = await response.Content.ReadFromJsonAsync<BupPhonesRootRaw>(_jsonOptions, cancellationToken)
-                ?? throw new InvalidOperationException("Respuesta BUP phones inválida");
+            var payload = await response.Content.ReadAsStringAsync(cancellationToken);
+            using var document = JsonDocument.Parse(payload);
+            var root = document.RootElement;
 
-            var ok = root.messages?.Any(m => string.Equals(m.code, "GSS-200-002", StringComparison.OrdinalIgnoreCase)) ?? false;
-            if (!ok)
-                throw new InvalidOperationException($"BUP phones service returned errors: {string.Join(',', root.messages?.Select(m => m.code ?? m.message) ?? Array.Empty<string>())}");
-
-            if (root.messages != null && root.messages.Any())
+            if (BupJsonUtils.TryGetProperty(root, out var messagesElement, "messages") && messagesElement.ValueKind == JsonValueKind.Array)
             {
-                _logger?.LogInformation("Mensajes BUP phones {PersonId}: {Messages}", personId, string.Join(';', root.messages.Select(m => m.code ?? m.message)));
+                var messages = messagesElement.EnumerateArray().ToList();
+                var ok = messages.Any(m => string.Equals(BupJsonUtils.GetString(m, "code"), "GSS-200-002", StringComparison.OrdinalIgnoreCase));
+                if (!ok)
+                {
+                    throw new InvalidOperationException($"BUP phones service returned errors: {string.Join(',', messages.Select(m => BupJsonUtils.GetString(m, "code") ?? BupJsonUtils.GetString(m, "message"))).Trim(',')}");
+                }
+
+                _logger?.LogInformation("Mensajes BUP phones {PersonId}: {Messages}", personId, string.Join(';', messages.Select(m => BupJsonUtils.GetString(m, "code") ?? BupJsonUtils.GetString(m, "message")).Where(m => !string.IsNullOrWhiteSpace(m))));
             }
 
-            var phones = root.data?.phones ?? Enumerable.Empty<BupPhoneRaw>();
-            return phones.Select(p => new BupPhoneDto
+            JsonElement dataElement;
+            if (!BupJsonUtils.TryGetProperty(root, out dataElement, "data"))
             {
-                PhoneId = p.phoneId,
-                AreaPhoneCode = p.areaPhoneCode,
-                PhoneNumber = p.phoneNumber,
-                PhoneType = p.phoneType,
-                PhoneUseType = p.phoneUseType,
-                CountryPhoneCode = p.countryPhoneCode,
-                CompletePhoneNumber = p.completePhoneNumber,
-                HasWhatsapp = p.phoneCertification?.hasWhatsapp ?? false
-            }).ToList();
+                throw new InvalidOperationException("Respuesta BUP phones inválida: no se encontró la sección data.");
+            }
+
+            if (!BupJsonUtils.TryGetProperty(dataElement, out var phonesElement, "phones"))
+            {
+                return Enumerable.Empty<BupPhoneDto>();
+            }
+
+            if (phonesElement.ValueKind != JsonValueKind.Array)
+            {
+                return Enumerable.Empty<BupPhoneDto>();
+            }
+
+            return phonesElement
+                .EnumerateArray()
+                .Where(p => p.ValueKind == JsonValueKind.Object)
+                .Select(p => new BupPhoneDto
+                {
+                    PhoneId = BupJsonUtils.GetInt(p, "phoneId"),
+                    AreaPhoneCode = BupJsonUtils.GetString(p, "areaPhoneCode"),
+                    PhoneNumber = BupJsonUtils.GetString(p, "phoneNumber"),
+                    PhoneType = BupJsonUtils.GetInt(p, "phoneType"),
+                    PhoneUseType = BupJsonUtils.GetInt(p, "phoneUseType"),
+                    CountryPhoneCode = BupJsonUtils.GetString(p, "countryPhoneCode"),
+                    CompletePhoneNumber = BupJsonUtils.GetString(p, "completePhoneNumber"),
+                    HasWhatsapp = ExtractHasWhatsapp(p)
+                })
+                .ToList();
         }
         catch (Exception ex)
         {
@@ -108,4 +128,14 @@ public class BupPhoneService : Application.Services.IBupPhoneService
         },
         _ => new List<BupPhoneDto>()
     };
+
+    private static bool ExtractHasWhatsapp(JsonElement phoneElement)
+    {
+        if (BupJsonUtils.TryGetProperty(phoneElement, out var certificationElement, "phoneCertification", "certification") && certificationElement.ValueKind == JsonValueKind.Object)
+        {
+            return BupJsonUtils.GetBool(certificationElement, "hasWhatsapp");
+        }
+
+        return BupJsonUtils.GetBool(phoneElement, "hasWhatsapp");
+    }
 }
