@@ -4,5 +4,6 @@ public enum BupServiceType
 {
     Person,
     Phones,
-    Emails
+    Emails,
+    Addresses
 }
