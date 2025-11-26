@@ -20,6 +20,7 @@ public class BupTokenService : Application.Services.IBupTokenService
     private readonly Dictionary<BupServiceType, TokenCache> _tokenCache;
     private readonly string _peopleClientName;
     private readonly string _phonesClientName;
+    private readonly string _emailsClientName;
 
     private sealed class TokenCache
     {
@@ -28,7 +29,7 @@ public class BupTokenService : Application.Services.IBupTokenService
         public DateTimeOffset ExpiresAt { get; set; } = DateTimeOffset.MinValue;
     }
 
-    public BupTokenService(IHttpClientFactory factory, IOptions<BupApiOptions> options, ILogger<BupTokenService> logger, string peopleClientName, string phonesClientName)
+    public BupTokenService(IHttpClientFactory factory, IOptions<BupApiOptions> options, ILogger<BupTokenService> logger, string peopleClientName, string phonesClientName, string emailsClientName)
     {
         _factory = factory;
         _options = options.Value;
@@ -40,10 +41,12 @@ public class BupTokenService : Application.Services.IBupTokenService
         _logger = logger;
         _peopleClientName = peopleClientName;
         _phonesClientName = phonesClientName;
+        _emailsClientName = emailsClientName;
         _tokenCache = new Dictionary<BupServiceType, TokenCache>
         {
             [BupServiceType.Person] = new TokenCache(),
-            [BupServiceType.Phones] = new TokenCache()
+            [BupServiceType.Phones] = new TokenCache(),
+            [BupServiceType.Emails] = new TokenCache()
         };
     }
 
@@ -127,6 +130,7 @@ public class BupTokenService : Application.Services.IBupTokenService
     {
         BupServiceType.Person => _peopleClientName,
         BupServiceType.Phones => _phonesClientName,
+        BupServiceType.Emails => _emailsClientName,
         _ => _phonesClientName
     };
 }

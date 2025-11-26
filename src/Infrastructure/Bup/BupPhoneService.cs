@@ -1,3 +1,4 @@
+using System;
 using System.Net.Http.Headers;
 using System.Text.Json;
 using System.Linq;
@@ -5,6 +6,7 @@ using Application.Persons.Dtos;
 using Microsoft.Extensions.Options;
 using Microsoft.Extensions.Logging;
 using Application.Services;
+using System.Collections.Generic;
 
 namespace Infrastructure.Bup;
 
@@ -106,6 +108,14 @@ public class BupPhoneService : Application.Services.IBupPhoneService
                     CompletePhoneNumber = BupJsonUtils.GetString(p, "completePhoneNumber"),
                     HasWhatsapp = ExtractHasWhatsapp(p)
                 })
+                .ToList()
+                .OrderBy(p =>
+                {
+                    var priorities = new[] { 1, 2, 6 };
+                    var index = Array.IndexOf(priorities, p.PhoneUseType ?? -1);
+                    return index >= 0 ? index : priorities.Length;
+                })
+                .ThenBy(p => p.PhoneId ?? int.MaxValue)
                 .ToList();
         }
         catch (Exception ex)

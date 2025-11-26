@@ -11,6 +11,7 @@ public static class BupServiceCollectionExtensions
 {
     public const string PhonesClientName = "BupPhonesApi";
     public const string PeopleClientName = "BupPeopleApi";
+    public const string EmailsClientName = "BupEmailsApi";
 
     public static IServiceCollection AddBupServices(this IServiceCollection services, IConfiguration configuration)
     {
@@ -20,6 +21,13 @@ public static class BupServiceCollectionExtensions
         {
             var options = sp.GetRequiredService<IOptions<BupApiOptions>>().Value;
             client.BaseAddress = new Uri(options.GetBaseUrl(BupServiceType.Phones));
+            client.DefaultRequestHeaders.Add("Accept", "application/json");
+        });
+
+        services.AddHttpClient(EmailsClientName, (sp, client) =>
+        {
+            var options = sp.GetRequiredService<IOptions<BupApiOptions>>().Value;
+            client.BaseAddress = new Uri(options.GetBaseUrl(BupServiceType.Emails));
             client.DefaultRequestHeaders.Add("Accept", "application/json");
         });
 
@@ -35,7 +43,8 @@ public static class BupServiceCollectionExtensions
                 sp.GetRequiredService<IOptions<BupApiOptions>>(),
                 sp.GetRequiredService<ILogger<BupTokenService>>(),
                 PeopleClientName,
-                PhonesClientName));
+                PhonesClientName,
+                EmailsClientName));
 
         services.AddScoped<Application.Services.IBupPersonService>(sp =>
             new BupPersonService(sp.GetRequiredService<IHttpClientFactory>(),
@@ -50,6 +59,13 @@ public static class BupServiceCollectionExtensions
                 sp.GetRequiredService<IOptions<BupApiOptions>>(),
                 sp.GetRequiredService<ILogger<BupPhoneService>>(),
                 PhonesClientName));
+
+        services.AddScoped<Application.Services.IBupEmailService>(sp =>
+            new BupEmailService(sp.GetRequiredService<IHttpClientFactory>(),
+                sp.GetRequiredService<Application.Services.IBupTokenService>(),
+                sp.GetRequiredService<IOptions<BupApiOptions>>(),
+                sp.GetRequiredService<ILogger<BupEmailService>>(),
+                EmailsClientName));
 
         return services;
     }

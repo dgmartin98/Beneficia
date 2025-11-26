@@ -2,6 +2,7 @@ using Application.Persons;
 using Microsoft.Extensions.Options;
 using Application.Persons.GetPersonById;
 using Application.Persons.GetPhoneToken;
+using Application.Persons.GetEmails;
 using Application.Persons.GetPhones;
 using Application.Persons.GetPersonOnly;
 using Application.Persons.GetPersonToken;
@@ -39,7 +40,7 @@ public class PersonsEndpoint : IEndpoint
             })
             .WithName("Persons_GetById")
             .WithSummary("Obtiene la información extendida de una persona")
-            .WithDescription("Obtiene los datos de People y Phones de BUP para la persona solicitada.")
+            .WithDescription("Obtiene los datos de People, Phones y Emails de BUP para la persona solicitada.")
             .Produces<Application.Persons.Dtos.BupPersonDto>(StatusCodes.Status200OK)
             .ProducesValidationProblem()
             .ProducesProblem(StatusCodes.Status404NotFound)
@@ -71,6 +72,21 @@ public class PersonsEndpoint : IEndpoint
             .WithName("Persons_GetPhones")
             .WithSummary("Obtiene únicamente los teléfonos de una persona")
             .Produces<IEnumerable<Application.Persons.Dtos.BupPhoneDto>>(StatusCodes.Status200OK)
+            .ProducesValidationProblem()
+            .ProducesProblem(StatusCodes.Status404NotFound)
+            .ProducesProblem(StatusCodes.Status500InternalServerError);
+
+        group.MapGet("/{personId:int}/emails", async (
+                [FromRoute] int personId,
+                ISender sender,
+                CancellationToken cancellationToken) =>
+            {
+                var result = await sender.Send(new GetEmailsByPersonIdQuery(personId), cancellationToken);
+                return result.ToHttpResult();
+            })
+            .WithName("Persons_GetEmails")
+            .WithSummary("Obtiene únicamente los emails de una persona")
+            .Produces<IEnumerable<Application.Persons.Dtos.BupEmailDto>>(StatusCodes.Status200OK)
             .ProducesValidationProblem()
             .ProducesProblem(StatusCodes.Status404NotFound)
             .ProducesProblem(StatusCodes.Status500InternalServerError);

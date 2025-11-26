@@ -1,3 +1,4 @@
+using System;
 using System.Net.Http.Headers;
 using System.Text.Json;
 using System.Linq;
@@ -98,7 +99,8 @@ public class BupPersonService : Application.Services.IBupPersonService
                 IdentificationTypeCode = ExtractDocumentValue(personElement, "identificationTypeCode"),
                 IdentificationIssuerCountry = ExtractDocumentValue(personElement, "identificationIssuerCountry"),
                 TaxIdentificationNumber = ExtractTributaryValue(personElement, "taxIdentificationNumber"),
-                Phones = ExtractPhones(personElement, dataElement)
+                Phones = ExtractPhones(personElement, dataElement),
+                Emails = ExtractEmails(personElement, dataElement)
             };
 
             return dto;
@@ -233,6 +235,46 @@ public class BupPersonService : Application.Services.IBupPersonService
                 CompletePhoneNumber = BupJsonUtils.GetString(p, "completePhoneNumber"),
                 HasWhatsapp = ExtractHasWhatsapp(p)
             })
+            .ToList()
+            .OrderBy(phone =>
+            {
+                var priorities = new[] { 1, 2, 6 };
+                var index = Array.IndexOf(priorities, phone.PhoneUseType ?? -1);
+                return index >= 0 ? index : priorities.Length;
+            })
+            .ThenBy(phone => phone.PhoneId ?? int.MaxValue)
+            .ToList();
+    }
+
+    private static List<BupEmailDto> ExtractEmails(JsonElement personElement, JsonElement dataElement)
+    {
+        JsonElement emailsElement = default;
+
+        if (!BupJsonUtils.TryGetProperty(personElement, out emailsElement, "emails"))
+        {
+            BupJsonUtils.TryGetProperty(dataElement, out emailsElement, "emails");
+        }
+
+        if (emailsElement.ValueKind != JsonValueKind.Array)
+            return new List<BupEmailDto>();
+
+        var priorities = new[] { 1, 2, 6 };
+
+        return emailsElement
+            .EnumerateArray()
+            .Where(e => e.ValueKind == JsonValueKind.Object)
+            .Select(e => new BupEmailDto
+            {
+                EmailId = BupJsonUtils.GetInt(e, "emailId"),
+                Email = BupJsonUtils.GetString(e, "email"),
+                EmailUseType = BupJsonUtils.GetInt(e, "emailUseType")
+            })
+            .OrderBy(email =>
+            {
+                var index = Array.IndexOf(priorities, email.EmailUseType ?? -1);
+                return index >= 0 ? index : priorities.Length;
+            })
+            .ThenBy(email => email.EmailId ?? int.MaxValue)
             .ToList();
     }
 
