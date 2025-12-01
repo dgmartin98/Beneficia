@@ -1,8 +1,11 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Net.Http;
 using System.Net.Http.Headers;
 using System.Text.Json;
+using System.Threading;
+using System.Threading.Tasks;
 using Application.Persons.Dtos;
 using Application.Services;
 using Microsoft.Extensions.Logging;
@@ -76,18 +79,21 @@ public class BupAddressService : Application.Services.IBupAddressService
             if (BupJsonUtils.TryGetProperty(root, out var messagesElement, "messages") && messagesElement.ValueKind == JsonValueKind.Array)
             {
                 var messages = messagesElement.EnumerateArray().ToList();
-                var ok = messages.Any(m =>
-                {
-                    var code = BupJsonUtils.GetString(m, "code") ?? string.Empty;
-                    return string.Equals(code, "GSS-200-002", StringComparison.OrdinalIgnoreCase)
-                        || string.Equals(code, "GS-200-002", StringComparison.OrdinalIgnoreCase);
-                });
+                var messageDetails = messages
+                    .Select(m => BupJsonUtils.GetString(m, "code") ?? BupJsonUtils.GetString(m, "message"))
+                    .Where(m => !string.IsNullOrWhiteSpace(m))
+                    .ToList();
+
+                var ok = messageDetails.Any(code =>
+                    string.Equals(code, "GSS-200-002", StringComparison.OrdinalIgnoreCase)
+                    || string.Equals(code, "GS-200-002", StringComparison.OrdinalIgnoreCase));
+
                 if (!ok)
                 {
-                    throw new InvalidOperationException($"BUP addresses service returned errors: {string.Join(',', messages.Select(m => BupJsonUtils.GetString(m, \"code\") ?? BupJsonUtils.GetString(m, \"message\"))).Trim(',')}");
+                    throw new InvalidOperationException($"BUP addresses service returned errors: {string.Join(',', messageDetails)}");
                 }
 
-                _logger?.LogInformation("Mensajes BUP domicilios {PersonId}: {Messages}", personId, string.Join(';', messages.Select(m => BupJsonUtils.GetString(m, "code") ?? BupJsonUtils.GetString(m, "message")).Where(m => !string.IsNullOrWhiteSpace(m))));
+                _logger?.LogInformation("Mensajes BUP domicilios {PersonId}: {Messages}", personId, string.Join(';', messageDetails));
             }
 
             var addressContainer = root;
@@ -153,24 +159,24 @@ public class BupAddressService : Application.Services.IBupAddressService
 
         if (BupJsonUtils.TryGetProperty(addressElement, out var cityElement, "city") && cityElement.ValueKind == JsonValueKind.Object)
         {
-            address.CityName = address.CityName ?? BupJsonUtils.GetString(cityElement, "cityName", "name");
-            address.PostalCode = address.PostalCode ?? BupJsonUtils.GetString(cityElement, "postalCode", "zipCode", "cityPostalCode");
+            address.CityName ??= BupJsonUtils.GetString(cityElement, "cityName", "name");
+            address.PostalCode ??= BupJsonUtils.GetString(cityElement, "postalCode", "zipCode", "cityPostalCode");
 
             if (BupJsonUtils.TryGetProperty(cityElement, out var stateElement, "state") && stateElement.ValueKind == JsonValueKind.Object)
             {
-                address.StateName = address.StateName ?? BupJsonUtils.GetString(stateElement, "stateName", "name");
+                address.StateName ??= BupJsonUtils.GetString(stateElement, "stateName", "name");
             }
         }
 
         if (BupJsonUtils.TryGetProperty(addressElement, out var countryElement, "country") && countryElement.ValueKind == JsonValueKind.Object)
         {
-            address.CountryName = address.CountryName ?? BupJsonUtils.GetString(countryElement, "countryName", "name");
+            address.CountryName ??= BupJsonUtils.GetString(countryElement, "countryName", "name");
         }
 
         if (BupJsonUtils.TryGetProperty(addressElement, out var typeElement, "addressType") && typeElement.ValueKind == JsonValueKind.Object)
         {
-            address.AddressTypeCode = address.AddressTypeCode ?? BupJsonUtils.GetInt(typeElement, "addressTypeCode", "addressType");
-            address.AddressTypeName = address.AddressTypeName ?? BupJsonUtils.GetString(typeElement, "contactTypeName", "addressTypeName");
+            address.AddressTypeCode ??= BupJsonUtils.GetInt(typeElement, "addressTypeCode", "addressType");
+            address.AddressTypeName ??= BupJsonUtils.GetString(typeElement, "contactTypeName", "addressTypeName");
         }
 
         return address;
