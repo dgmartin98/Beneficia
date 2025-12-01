@@ -10,6 +10,7 @@ using System.Text.Json;
 using Gss.MinimalApis.Settings;
 using Infrastructure.Persistence;
 using Infrastructure.Bup;
+using Infrastructure.Segmentation;
 
 // Configurar logging temprano para capturar errores de startup
 SerilogConfiguration.ConfigureEarlyLogging();
@@ -56,6 +57,7 @@ try
         })
         .ConfigureResponseCompression()
         .ConfigureRepositories(builder.Configuration)
+        .AddSegmentationServices(builder.Configuration)
         ;
 
     builder.Services.AddBupServices(builder.Configuration);
