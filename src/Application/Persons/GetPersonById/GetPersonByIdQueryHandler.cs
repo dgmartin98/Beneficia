@@ -1,10 +1,8 @@
 using Application.Persons.Dtos;
 using Application.Services;
-using Application.Interfaces;
 using Gss.Results;
 using Gss.Mediator;
 using Microsoft.Extensions.Logging;
-using Microsoft.EntityFrameworkCore;
 using System.Collections.Generic;
 using System.Linq;
 
@@ -15,22 +13,20 @@ namespace Application.Persons.GetPersonById;
 /// </summary>
 public class GetPersonByIdQueryHandler : IQueryHandler<GetPersonByIdQuery, BupPersonDto>
 {
-    private readonly IAppDbContext _dbContext;
     private readonly IBupPersonService _personService;
     private readonly IBupPhoneService _phoneService;
     private readonly IBupEmailService _emailService;
-    private readonly IBupAddressService _addressService;
     private readonly IBupTokenService _tokenService;
+    private readonly ISegmentationService _segmentationService;
     private readonly ILogger<GetPersonByIdQueryHandler> _logger;
 
-    public GetPersonByIdQueryHandler(IAppDbContext dbContext, IBupPersonService personService, IBupPhoneService phoneService, IBupEmailService emailService, IBupAddressService addressService, IBupTokenService tokenService, ILogger<GetPersonByIdQueryHandler> logger)
+    public GetPersonByIdQueryHandler(IBupPersonService personService, IBupPhoneService phoneService, IBupEmailService emailService, IBupTokenService tokenService, ISegmentationService segmentationService, ILogger<GetPersonByIdQueryHandler> logger)
     {
-        _dbContext = dbContext ?? throw new ArgumentNullException(nameof(dbContext));
         _personService = personService ?? throw new ArgumentNullException(nameof(personService));
         _phoneService = phoneService ?? throw new ArgumentNullException(nameof(phoneService));
         _emailService = emailService ?? throw new ArgumentNullException(nameof(emailService));
-        _addressService = addressService ?? throw new ArgumentNullException(nameof(addressService));
         _tokenService = tokenService ?? throw new ArgumentNullException(nameof(tokenService));
+        _segmentationService = segmentationService ?? throw new ArgumentNullException(nameof(segmentationService));
         _logger = logger ?? throw new ArgumentNullException(nameof(logger));
     }
 
@@ -49,9 +45,6 @@ public class GetPersonByIdQueryHandler : IQueryHandler<GetPersonByIdQuery, BupPe
             var emailToken = await _tokenService.GetTokenAsync(BupServiceType.Emails, cancellationToken);
             _logger.LogInformation("Token de emails obtenido para {PersonId}", request.PersonId);
 
-            var addressToken = await _tokenService.GetTokenAsync(BupServiceType.Addresses, cancellationToken);
-            _logger.LogInformation("Token de domicilios obtenido para {PersonId}", request.PersonId);
-
             var person = await _personService.GetPersonByIdAsync(request.PersonId, personToken, cancellationToken);
             if (person == null)
             {
@@ -67,9 +60,11 @@ public class GetPersonByIdQueryHandler : IQueryHandler<GetPersonByIdQuery, BupPe
             var primaryEmail = emails.FirstOrDefault();
             person.Emails = primaryEmail is null ? new List<BupEmailDto>() : new List<BupEmailDto> { primaryEmail };
 
-            var addresses = await _addressService.GetAddressesByPersonIdAsync(request.PersonId, addressToken, cancellationToken);
-            var primaryAddress = addresses.FirstOrDefault();
-            person.Addresses = primaryAddress is null ? new List<BupAddressDto>() : new List<BupAddressDto> { primaryAddress };
+            // Temporalmente se omite la consulta de domicilios hasta revisar el inconveniente reportado.
+            person.Addresses = new List<BupAddressDto>();
+
+            var segmentation = await _segmentationService.GetSegmentationAsync(request.PersonId, cancellationToken);
+            person.Segmentation = segmentation;
 
             _logger.LogInformation("Persona {PersonId} obtenida con {PhoneCount} teléfonos", request.PersonId, person.Phones.Count);
 
