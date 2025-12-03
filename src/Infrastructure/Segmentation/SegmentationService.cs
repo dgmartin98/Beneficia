@@ -3,6 +3,8 @@ using Application.Services;
 using Microsoft.Data.SqlClient;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
+using System;
+using System.Collections.Generic;
 using System.Data;
 
 namespace Infrastructure.Segmentation;
@@ -57,30 +59,94 @@ ELSE
             throw new InvalidOperationException("No se encontró la cadena de conexión para segmentación.");
         }
 
-        await using var connection = new SqlConnection(_options.ConnectionString);
-        await connection.OpenAsync(cancellationToken);
+        var connectionString = _options.ConnectionString;
+        var connectionInfo = new SqlConnectionStringBuilder(connectionString);
 
-        await using var command = connection.CreateCommand();
-        command.CommandText = SegmentationQuery;
-        command.CommandType = CommandType.Text;
-        command.CommandTimeout = _options.CommandTimeoutSeconds;
-        command.Parameters.Add(new SqlParameter("@personBupId", SqlDbType.Int) { Value = personId });
-
-        _logger.LogInformation("Ejecutando consulta de segmentación para persona {PersonId} contra {DataSource}/{Database}", personId, connection.DataSource, connection.Database);
-
-        await using var reader = await command.ExecuteReaderAsync(cancellationToken);
-        if (await reader.ReadAsync(cancellationToken))
+        using var logScope = _logger.BeginScope(new Dictionary<string, object>
         {
-            return new SegmentationDto
-            {
-                Indicator = reader.GetString(reader.GetOrdinal("indicator")),
-                Value = reader.GetInt32(reader.GetOrdinal("value")),
-                AditionalData = reader.IsDBNull(reader.GetOrdinal("aditionalData")) ? null : reader.GetString(reader.GetOrdinal("aditionalData")),
-                ProcessOk = reader.GetInt32(reader.GetOrdinal("processOk"))
-            };
-        }
+            ["PersonId"] = personId,
+            ["SegmentationDatabase"] = connectionInfo.InitialCatalog,
+            ["SegmentationDataSource"] = connectionInfo.DataSource,
+            ["SegmentationUser"] = connectionInfo.UserID,
+        });
 
-        _logger.LogWarning("No se encontró información de segmentación para la persona {PersonId}", personId);
-        return new SegmentationDto { Indicator = "GSS_clasificacion", ProcessOk = 0, Value = 0 };
+        _logger.LogInformation(
+            "Preparando consulta de segmentación para persona {PersonId} (DB: {InitialCatalog} - Server: {DataSource}, Timeout: {Timeout})",
+            personId,
+            connectionInfo.InitialCatalog,
+            connectionInfo.DataSource,
+            _options.CommandTimeoutSeconds);
+
+        try
+        {
+            await using var connection = new SqlConnection(connectionString);
+            await connection.OpenAsync(cancellationToken);
+
+            _logger.LogInformation("Conexión a segmentación abierta (State: {State})", connection.State);
+
+            await using var command = connection.CreateCommand();
+            command.CommandText = SegmentationQuery;
+            command.CommandType = CommandType.Text;
+            command.CommandTimeout = _options.CommandTimeoutSeconds;
+            command.Parameters.Add(new SqlParameter("@personBupId", SqlDbType.Int) { Value = personId });
+
+            _logger.LogInformation(
+                "Ejecutando consulta de segmentación para persona {PersonId} contra {DataSource}/{Database}",
+                personId,
+                connection.DataSource,
+                connection.Database);
+
+            await using var reader = await command.ExecuteReaderAsync(cancellationToken);
+            if (await reader.ReadAsync(cancellationToken))
+            {
+                var dto = new SegmentationDto
+                {
+                    Indicator = reader.GetString(reader.GetOrdinal("indicator")),
+                    Value = reader.GetInt32(reader.GetOrdinal("value")),
+                    AditionalData = reader.IsDBNull(reader.GetOrdinal("aditionalData")) ? null : reader.GetString(reader.GetOrdinal("aditionalData")),
+                    ProcessOk = reader.GetInt32(reader.GetOrdinal("processOk"))
+                };
+
+                _logger.LogInformation(
+                    "Segmentación obtenida para persona {PersonId}: indicador {Indicator}, valor {Value}, proceso OK {ProcessOk}",
+                    personId,
+                    dto.Indicator,
+                    dto.Value,
+                    dto.ProcessOk);
+
+                return dto;
+            }
+
+            _logger.LogWarning("No se encontró información de segmentación para la persona {PersonId}", personId);
+            return new SegmentationDto { Indicator = "GSS_clasificacion", ProcessOk = 0, Value = 0 };
+        }
+        catch (DllNotFoundException ex) when (ex.Message.Contains("libgssapi_krb5.so.2", StringComparison.OrdinalIgnoreCase))
+        {
+            _logger.LogError(
+                ex,
+                "No se encontró la librería libgssapi_krb5.so.2 requerida para la autenticación integrada contra SQL Server. " +
+                "Instale los paquetes de Kerberos (por ejemplo libkrb5-3/libgssapi-krb5-2 en Debian/Ubuntu) o configure SQL Client para usar autenticación SQL en su conexión.");
+
+            throw;
+        }
+        catch (TypeInitializationException ex) when (ex.InnerException is DllNotFoundException dllEx && dllEx.Message.Contains("libgssapi_krb5.so.2", StringComparison.OrdinalIgnoreCase))
+        {
+            _logger.LogError(
+                ex,
+                "Fallo la inicialización de NetSecurityNative por falta de libgssapi_krb5.so.2. " +
+                "Agregue las dependencias de Kerberos necesarias en el contenedor/host o cambie el método de autenticación de SQL Server.");
+
+            throw;
+        }
+        catch (SqlException ex)
+        {
+            _logger.LogError(ex, "Error SQL al obtener segmentación para persona {PersonId}", personId);
+            throw;
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error inesperado al obtener segmentación para persona {PersonId}", personId);
+            throw;
+        }
     }
 }
