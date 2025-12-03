@@ -34,17 +34,26 @@ public class GetPersonByIdQueryHandler : IQueryHandler<GetPersonByIdQuery, BupPe
     {
         try
         {
+            using var logScope = _logger.BeginScope(new Dictionary<string, object>
+            {
+                ["PersonId"] = request.PersonId
+            });
+
             _logger.LogInformation("Iniciando obtención de persona {PersonId}", request.PersonId);
 
+            _logger.LogInformation("Solicitando token de persona para {PersonId}", request.PersonId);
             var personToken = await _tokenService.GetTokenAsync(BupServiceType.Person, cancellationToken);
             _logger.LogInformation("Token de persona obtenido para {PersonId}", request.PersonId);
 
+            _logger.LogInformation("Solicitando token de teléfonos para {PersonId}", request.PersonId);
             var phoneToken = await _tokenService.GetTokenAsync(BupServiceType.Phones, cancellationToken);
             _logger.LogInformation("Token de teléfonos obtenido para {PersonId}", request.PersonId);
 
+            _logger.LogInformation("Solicitando token de emails para {PersonId}", request.PersonId);
             var emailToken = await _tokenService.GetTokenAsync(BupServiceType.Emails, cancellationToken);
             _logger.LogInformation("Token de emails obtenido para {PersonId}", request.PersonId);
 
+            _logger.LogInformation("Consultando persona en BUP para {PersonId}", request.PersonId);
             var person = await _personService.GetPersonByIdAsync(request.PersonId, personToken, cancellationToken);
             if (person == null)
             {
@@ -56,6 +65,7 @@ public class GetPersonByIdQueryHandler : IQueryHandler<GetPersonByIdQuery, BupPe
             var primaryPhone = phones.FirstOrDefault();
             person.Phones = primaryPhone is null ? new List<BupPhoneDto>() : new List<BupPhoneDto> { primaryPhone };
 
+            _logger.LogInformation("Consultando emails en BUP para {PersonId}", request.PersonId);
             var emails = await _emailService.GetEmailsByPersonIdAsync(request.PersonId, emailToken, cancellationToken);
             var primaryEmail = emails.FirstOrDefault();
             person.Emails = primaryEmail is null ? new List<BupEmailDto>() : new List<BupEmailDto> { primaryEmail };
@@ -63,8 +73,11 @@ public class GetPersonByIdQueryHandler : IQueryHandler<GetPersonByIdQuery, BupPe
             // Temporalmente se omite la consulta de domicilios hasta revisar el inconveniente reportado.
             person.Addresses = new List<BupAddressDto>();
 
+            _logger.LogInformation("Consultando segmentación para {PersonId}", request.PersonId);
             var segmentation = await _segmentationService.GetSegmentationAsync(request.PersonId, cancellationToken);
             person.Segmentation = segmentation;
+
+            _logger.LogInformation("Segmentación obtenida para {PersonId}: indicador {Indicator}, proceso OK {ProcessOk}", request.PersonId, segmentation?.Indicator, segmentation?.ProcessOk);
 
             _logger.LogInformation("Persona {PersonId} obtenida con {PhoneCount} teléfonos", request.PersonId, person.Phones.Count);
 
